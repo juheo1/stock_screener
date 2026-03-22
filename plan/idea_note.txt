@@ -1,0 +1,38 @@
+I want to make GUI website that I can use for stock intelligence and screener.
+Running with python on the background.
+You may refer to Stock screener by Felix & Friends in the following URL:
+https://betterstocks.goatacademy.org/stocks
+
+But this is a paid one, so you should find information about this stock screener tool online, and I want to mimic the screener on my PC.
+
+I've provided a few images of the GUI that I want to build.
+
+Below are some ideas of what to include.
+
+What Is a Zombie Stock?
+- A zombie is a company that earns just enough to service its debt — but not enough to grow, reinvest, or survive a rate hike.
+- The balance sheet looks passable. The income statement tells a different story.
+- Interest Coverage < 1x: Can't pay the interest on their loans
+- Free Cash Flow < 0: Burning cash every quarter
+- Gross Margin ↓: Core business is deteriorating
+- One bad pick can erase months of gains. Our screener flags all 612 before you click "buy."
+- Negative free cash flow. Interest coverage below 1x. Gross margins in freefall. They're still trading. Some still have "buy" ratings.
+- I want to flag them all. Automatically.
+
+The Command Center
+- The Kill List
+- # stocks that fail three-part solvency test. Negative FCF. Interest coverage below 1. Dying margins. All flagged. All searchable. All exportable.
+- flagged · Daily updates · Export to CSV
+
+10,000 Stocks. Your Thresholds.
+- Set minimum gross margin. Cap the P/E. Require positive FCF. Use our presets or build custom screens. Export results.
+
+50 Tickers. One Screen.
+- Side-by-side comparison on Gross Margin, ROIC, FCF Margin, Interest Coverage, Moat Score, P/E. Color-coded. Sortable. Fast.
+
+Your Retirement. Modeled.
+- Enter your portfolio. Set your target retirement age. See three scenarios — conservative, expected, optimistic — with year-by-year projections.
+
+Metals Included
+- Gold. Silver. Platinum. Palladium. Copper. Spot prices at the time of run (no auto-update yet, but allow for expansion). COMEX inventory. Gold/Silver ratio. Personal stack tracker.
+5 metals · COMEX data

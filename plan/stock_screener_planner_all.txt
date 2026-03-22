@@ -1,0 +1,383 @@
+STOCK INTELLIGENCE AND SCREENER - PROJECT PLANNER
+====================================================
+
+Stock Intelligence and Screener - Project Planner
+
+#Purpose
+Build a local web application for stock intelligence and screening. Python runs the back end (data ingestion, metric computation, API). A web UI provides dashboards, filters, comparison tables, and exports.
+
+The target UX is similar to the Felix & Friends "Stock Intelligence Suite" with:
+- Smart Screener (threshold-based filtering)
+- Zombie Detector (solvency risk list)
+- Batch Compare (side-by-side metrics)
+- Retirement projections
+- Macro / liquidity monitor
+- Metals intelligence
+
+#Guiding concepts
+
+##Fundamental metrics
+Core metrics used in screening and scoring:
+- Gross margin: profitability after direct costs [S1]
+- ROIC: capital efficiency (how well invested capital is turned into operating profit) [S2]
+- Free cash flow (FCF) margin: cash generation relative to revenue (FCF = operating cash flow - capex) [S3]
+- Interest coverage ratio: ability to pay interest using earnings (often EBIT / interest expense) [S4]
+- P/E ratio: valuation multiple based on price and earnings per share [S5]
+
+##Zombie detection (solvency risk)
+A "zombie company" is typically an indebted or uncompetitive company that can only cover interest on its debt (interest coverage <= 1) and lacks capacity to reduce principal, invest, or grow [S6].
+
+Operational flag (configurable):
+- Negative free cash flow (FCF < 0)
+- Interest coverage < 1.0x
+- Deteriorating gross margin trend (for example, 3-year slope < 0)
+
+##User flows
+Users should be able to:
+1. View a dashboard with key market/macro indicators and summary counts.
+2. Screen a large universe with threshold sliders/inputs.
+3. Open a pre-built "Zombie Kill List" with reasons and export.
+4. Compare up to 50 tickers side-by-side on a single screen.
+5. Model retirement scenarios with year-by-year projections.
+6. View metals prices and inventory, plus a personal stack tracker.
+
+
+----------------------------------------------------
+
+Back End Plan
+
+#1. Data ingestion layer
+
+##Financial statement data (equities)
+Goal: collect the inputs needed to compute the screener metrics and derived scores.
+
+Typical required fields:
+- Income statement: revenue, COGS, gross profit, EBIT/operating income, interest expense, net income, diluted shares
+- Balance sheet: total assets, current liabilities, cash, total debt, equity, working capital items
+- Cash flow statement: operating cash flow, capex, free cash flow inputs
+
+Possible free sources:
+- Public market data providers that offer free tiers (rate-limited).
+- Company filings (SEC EDGAR) for US issuers if you want first-party data.
+- For a PC-local tool, start with a single provider and keep source adapters modular so you can swap later.
+
+##Macro data
+For the macro monitor:
+- FRED series (M2, reverse repo, rates, etc.)
+Store daily time series for charts.
+
+##Metals data
+For metals intel:
+- Spot prices (gold, silver, platinum, palladium, copper).
+- Inventory series (COMEX warehouses), if you can access a stable free source.
+
+##Storage
+Start local, then scale:
+- SQLite for local-first development
+- PostgreSQL if you want multi-user and concurrency
+
+Tables (minimum):
+- equities (ticker, name, exchange, sector, industry, currency)
+- statements_income (ticker, period_end, values...)
+- statements_balance (ticker, period_end, values...)
+- statements_cashflow (ticker, period_end, values...)
+- metrics_quarterly (ticker, period_end, gross_margin, roic, fcf_margin, interest_cov, pe, etc.)
+- flags (ticker, asof_date, is_zombie, reasons_json)
+- macro_series (series_id, date, value)
+- metals_series (metal_id, date, spot_price, inventory_optional)
+- user_portfolios (user_id, portfolio_json, settings_json)
+- user_metal_stack (user_id, transactions_json)
+
+#2. Metric computation service
+Compute and store derived metrics on schedule.
+
+Core formulas:
+- Gross margin % = (revenue - COGS) / revenue * 100 [S1]
+- ROIC = NOPAT / invested_capital, with NOPAT often approximated as EBIT * (1 - tax_rate) [S2]
+- FCF margin % = free_cash_flow / revenue * 100, with FCF = operating_cash_flow - capex [S3]
+- Interest coverage = EBIT / interest_expense [S4]
+- P/E ratio = price / EPS [S5]
+
+Notes for implementation:
+- Keep units explicit (percent vs ratio).
+- Track as-of date and statement period end.
+- Define NA behavior (for example, interest expense = 0 -> coverage = +inf, but store a flag).
+
+#3. Zombie classifier
+Rule-based (v1), later upgradeable to a scoring model.
+
+Example definition (configurable thresholds):
+- FCF < 0
+- Interest coverage < 1.0
+- Gross margin trend negative over last N years
+
+Outputs:
+- is_zombie boolean
+- reasons (list)
+- severity score (0-100), optional
+
+#4. Retirement modeling engine
+Inputs:
+- holdings (ticker, weight or shares)
+- contributions schedule
+- retirement age, target horizon
+- assumptions: expected return, volatility, inflation
+
+Outputs:
+- three scenarios: conservative, expected, optimistic
+- year-by-year projection arrays
+- probability of meeting target (readiness score)
+
+Start simple:
+- lognormal returns with correlation assumptions
+- later: historical bootstrapping per asset class
+
+#5. Job orchestration
+Local-first options:
+- cron + python scripts
+- APScheduler inside the FastAPI app (simple)
+
+If you later want reliability:
+- Celery + Redis (or RQ)
+
+
+----------------------------------------------------
+
+API Plan (FastAPI recommended)
+
+#Core principles
+- All reads should be paginated.
+- All endpoints should support an "as_of" date (latest by default).
+- Provide CSV export endpoints that reuse the same query layer as JSON endpoints.
+
+#Endpoints
+
+##Dashboard
+GET /dashboard
+Returns:
+- summary counts (screened, zombies, quality)
+- key market cards (S&P 500 proxy, VIX proxy, etc.)
+- latest macro series values
+- latest metals spot prices
+
+##Screener
+GET /screener
+Query params (examples):
+- min_gross_margin
+- min_roic
+- min_fcf_margin
+- min_interest_coverage
+- max_pe
+- hide_na (bool)
+- sort_by, sort_dir
+- page, page_size
+
+Returns:
+- rows with ticker, company, and selected metrics
+- computed pass/fail flags per metric (for coloring)
+
+##Presets
+GET /presets
+Returns saved presets:
+- high_quality
+- value
+- growth
+- zombie
+Each preset includes default thresholds and scoring weights.
+
+##Zombies
+GET /zombies
+Query params:
+- search (ticker/name)
+- sector
+- page, page_size
+
+Returns:
+- ticker, company
+- zombie reasons
+- metrics snapshot
+
+GET /zombies/export.csv
+Same query params, returns CSV.
+
+##Compare
+POST /compare
+Body:
+- tickers: list[str] (max 50)
+- optional thresholds (to show pass/fail)
+
+Returns:
+- per-ticker metrics
+- overall score
+- heatmap metadata (per-cell color band)
+
+Export:
+- POST /compare/export.xlsx
+- POST /compare/export.pdf
+
+##Retirement
+POST /retirement
+Body:
+- portfolio (holdings)
+- ages, contributions
+- scenario assumptions
+
+Returns:
+- scenario projections
+- readiness score
+
+##Metals
+GET /metals
+Returns:
+- spot prices for gold, silver, platinum, palladium, copper
+- gold/silver ratio
+- inventory series summary if available
+
+Authenticated user endpoints:
+- POST /metals/stack/transaction
+- GET /metals/stack/summary
+
+#Auth
+- JWT access tokens (local app can still use auth to separate profiles)
+- Store only necessary user data (portfolios, saved screens, metal stack)
+
+
+----------------------------------------------------
+
+Front End Plan
+
+Choose one:
+1. Dash (all-Python UI)
+2. React SPA + FastAPI back end
+
+Recommendation for a PC-local tool:
+- Start with Dash for speed (one language, fewer moving parts).
+- Migrate to React when you want a more complex UX.
+
+#Pages and components
+
+#1. Intelligence Hub (Dashboard)
+Components:
+- Market cards (index proxy, VIX proxy)
+- Summary cards (screened count, zombies count, quality count)
+- Carry trade risk widget (v1: placeholder data; later: real model)
+- Metals widget (spot prices, ratio)
+
+#2. Stock Screener
+Controls:
+- Sliders / numeric inputs for thresholds:
+  - gross margin min
+  - ROIC min
+  - FCF margin min
+  - interest coverage min
+  - P/E max
+- Quick presets buttons (High Quality, Value, Growth, Zombies, Clear)
+- hide NA checkbox
+
+Results:
+- table grid with:
+  - ticker, company, gross margin, ROIC, FCF margin, interest coverage, P/E
+  - sortable columns
+  - search
+  - pagination
+  - export CSV
+
+Behavior:
+- changes trigger an API call, update results without full refresh.
+
+#3. Zombie Kill List
+Components:
+- search input (ticker/name)
+- filters (sector/industry)
+- table with:
+  - reasons (negative FCF, coverage < 1, margin deterioration)
+  - severity score (optional)
+- export CSV
+
+#4. Batch Compare
+Components:
+- ticker entry (chips list, max 50)
+- analyze button
+- results grid with:
+  - pass/fail icons per metric threshold
+  - overall score
+  - heatmap coloring
+- export Excel, export PDF
+
+#5. Retirement Planner
+Inputs:
+- current portfolio value or holdings
+- contribution schedule
+- ages and retirement target
+- scenario assumptions
+
+Outputs:
+- chart with three scenario curves
+- table with year-by-year values
+- readiness score summary
+
+#6. Metals Intel
+Components:
+- spot price cards and small charts
+- COMEX inventory chart (if available)
+- gold/silver ratio
+- personal stack tracker (transactions + current valuation)
+
+#7. Macro / Liquidity Monitor
+Components:
+- selectable timeframes (1Y, 2Y, 5Y, 10Y)
+- charts for:
+  - reverse repo
+  - M2 money supply
+  - government spending (if included)
+
+
+----------------------------------------------------
+
+Build Workflow
+
+#Phase 0 - Repo skeleton
+- Set up folders (backend, frontend, docs, scripts).
+- Add a minimal environment file and a local run script.
+
+#Phase 1 - UI prototype with mock data
+- Implement dashboard layout, screener layout, compare layout.
+- Confirm interaction model (sliders, table sorting, exports).
+
+#Phase 2 - Data layer and metrics
+- Implement ingestion for a small ticker set.
+- Compute gross margin, ROIC, FCF margin, interest coverage, P/E.
+- Write unit tests for each metric computation.
+
+#Phase 3 - API + UI integration
+- Implement /screener, /zombies, /compare endpoints.
+- Hook the UI to live endpoints.
+- Add CSV export.
+
+#Phase 4 - Retirement + metals + macro
+- Add /retirement endpoint and UI.
+- Add /metals endpoint and UI.
+- Add macro charts from FRED.
+
+#Phase 5 - Hardening
+- caching (avoid recompute on each query)
+- data freshness indicators
+- logging and error handling
+- packaged local deployment (Docker optional)
+
+#Definition of done (v1)
+- Screener works with thresholds and exports.
+- Zombie list works with explanations and exports.
+- Compare tool works for up to 50 tickers.
+- Data updates on demand (manual button) or daily schedule.
+
+
+----------------------------------------------------
+SOURCES
+----------------------------------------------------
+S1. Gross margin definition (Investopedia): https://www.investopedia.com/terms/g/grossmargin.asp
+S2. ROIC definition (Corporate Finance Institute): https://corporatefinanceinstitute.com/resources/accounting/what-is-roic/
+S3. FCF margin definition (Investing.com Academy): https://www.investing.com/academy/analysis/free-cash-flow-margin-definition/
+S4. Interest coverage ratio definition (Investopedia): https://www.investopedia.com/terms/i/interestcoverageratio.asp
+S5. P/E ratio definition (Investopedia): https://www.investopedia.com/terms/p/price-earningsratio.asp
+S6. Zombie company definition (Corporate Finance Institute): https://corporatefinanceinstitute.com/resources/commercial-lending/zombie-company/

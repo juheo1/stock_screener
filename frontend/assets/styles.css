@@ -1,0 +1,436 @@
+/* =========================================================
+   Stock Screener – Custom Styles
+   Black background, white text theme
+   ========================================================= */
+
+/* ---- Global ---- */
+body {
+    background-color: #000000;
+    color: #ffffff;
+    font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+}
+
+/* ---- Sidebar nav ---- */
+#sidebar {
+    background-color: #111111;
+    min-height: 100vh;
+    padding: 0;
+    border-right: 1px solid #2a2a2a;
+}
+
+#sidebar .sidebar-header {
+    background-color: #1a1a1a;
+    padding: 20px 16px 16px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+#sidebar .sidebar-header h4 {
+    color: #e94560;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+#sidebar .sidebar-header small {
+    color: #aaaaaa;
+    font-size: 0.72rem;
+}
+
+.nav-link-item {
+    display: block;
+    padding: 11px 20px;
+    color: #ffffff !important;
+    text-decoration: none;
+    font-size: 0.88rem;
+    border-left: 3px solid transparent;
+    transition: all 0.15s ease;
+}
+
+.nav-link-item:hover {
+    background-color: #1c1c1c;
+    color: #ffffff !important;
+    border-left-color: #4a90e2;
+}
+
+.nav-link-item.active {
+    background-color: #1c1c1c;
+    color: #ffffff !important;
+    border-left-color: #e94560;
+    font-weight: 600;
+}
+
+.nav-link-item .nav-icon {
+    margin-right: 10px;
+    font-size: 1rem;
+    width: 18px;
+    display: inline-block;
+    text-align: center;
+}
+
+/* ---- Main content ---- */
+#page-content {
+    background-color: #000000;
+    min-height: 100vh;
+    padding: 24px 28px;
+    color: #ffffff;
+}
+
+/* ---- Summary / KPI cards ---- */
+.kpi-card {
+    background-color: #111111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 18px 20px;
+    text-align: center;
+    transition: border-color 0.15s;
+}
+
+.kpi-card:hover {
+    border-color: #4a90e2;
+}
+
+.kpi-card .kpi-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+}
+
+.kpi-card .kpi-label {
+    font-size: 0.78rem;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-top: 6px;
+}
+
+.kpi-card .kpi-change {
+    font-size: 0.82rem;
+    margin-top: 4px;
+}
+
+.kpi-card .kpi-change.positive { color: #2ecc71; }
+.kpi-card .kpi-change.negative { color: #e74c3c; }
+
+/* ---- Section headers ---- */
+.section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 14px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #2a2a2a;
+}
+
+/* ---- AG Grid tooltip: preserve newlines & limit width ---- */
+.ag-tooltip {
+    white-space: pre-line !important;
+    max-width: 420px !important;
+    line-height: 1.65 !important;
+    font-size: 0.82rem !important;
+    padding: 8px 12px !important;
+}
+
+/* ---- AG Grid overrides ---- */
+.ag-theme-alpine-dark {
+    --ag-background-color: #111111;
+    --ag-header-background-color: #1a1a1a;
+    --ag-odd-row-background-color: #0d0d0d;
+    --ag-row-hover-color: #1c1c1c;
+    --ag-border-color: #2a2a2a;
+    --ag-font-size: 13px;
+    --ag-foreground-color: #ffffff;
+    --ag-header-foreground-color: #ffffff;
+    --ag-secondary-foreground-color: #ffffff;
+    --ag-cell-horizontal-border: 1px solid #2a2a2a;
+}
+
+/* Wrap text inside AG Grid cells */
+.ag-theme-alpine-dark .ag-cell {
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    line-height: 1.4;
+}
+
+.ag-theme-alpine-dark .ag-header-cell-text {
+    white-space: normal !important;
+    word-break: break-word;
+    line-height: 1.3;
+}
+
+/* Pass/fail cell colouring */
+.cell-good  { color: #2ecc71 !important; font-weight: 600; }
+.cell-bad   { color: #e74c3c !important; font-weight: 600; }
+.cell-na    { color: #ffffff !important; }
+
+/* ---- Preset buttons ---- */
+.preset-btn {
+    font-size: 0.80rem;
+    padding: 5px 12px;
+    border-radius: 4px;
+    margin-right: 6px;
+    margin-bottom: 6px;
+}
+
+/* ---- Zombie badge ---- */
+.zombie-badge {
+    display: inline-block;
+    background-color: #e94560;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}
+
+/* Severity bar */
+.severity-bar-container {
+    background-color: #2a2a2a;
+    border-radius: 4px;
+    height: 8px;
+    width: 100%;
+    overflow: hidden;
+}
+
+.severity-bar {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #f39c12 0%, #e74c3c 100%);
+}
+
+/* ---- Technical Analysis Modals: centered, properly sized, draggable ---- */
+.tech-add-modal-dialog .modal-dialog {
+    max-width: 380px;
+    margin: auto;
+}
+
+.tech-config-modal-dialog .modal-dialog {
+    max-width: 440px;
+    margin: auto;
+}
+
+/* Make modal header a drag handle */
+.tech-add-modal-dialog .modal-header,
+.tech-config-modal-dialog .modal-header {
+    cursor: move;
+    user-select: none;
+}
+
+/* When modal is being dragged, disable pointer events on body content */
+.modal-dragging {
+    pointer-events: none;
+    user-select: none;
+}
+
+/* ---- Charts ---- */
+.chart-container {
+    background-color: #111111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 16px;
+}
+
+/* ---- Input labels ---- */
+.threshold-label {
+    font-size: 0.78rem;
+    color: #ffffff;
+    margin-bottom: 4px;
+}
+
+/* ---- Ticker chips (compare page) ---- */
+.ticker-chip {
+    display: inline-flex;
+    align-items: center;
+    background-color: #1a1a1a;
+    border: 1px solid #4a90e2;
+    border-radius: 14px;
+    padding: 3px 10px 3px 12px;
+    font-size: 0.82rem;
+    color: #ffffff;
+    margin: 3px;
+}
+
+.ticker-chip .chip-remove {
+    margin-left: 6px;
+    cursor: pointer;
+    color: #aaaaaa;
+    font-size: 0.9rem;
+    line-height: 1;
+}
+
+.ticker-chip .chip-remove:hover { color: #e74c3c; }
+
+/* ---- Loading spinner ---- */
+._dash-loading {
+    color: #4a90e2 !important;
+}
+
+/* ---- Page title ---- */
+.page-title {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 20px;
+}
+
+.page-title .title-accent {
+    color: #e94560;
+}
+
+/* ---- Divider ---- */
+.divider {
+    border-top: 1px solid #2a2a2a;
+    margin: 16px 0;
+}
+
+/* ---- Metals card ---- */
+.metal-card {
+    background-color: #111111;
+    border: 1px solid #2a2a2a;
+    border-radius: 8px;
+    padding: 14px 16px;
+}
+
+.metal-card .metal-name {
+    font-size: 0.78rem;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.metal-card .metal-price {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f0c040;
+}
+
+.metal-card .metal-unit {
+    font-size: 0.72rem;
+    color: #ffffff;
+}
+
+/* ---- Retirement readiness score ---- */
+.readiness-score {
+    font-size: 2.5rem;
+    font-weight: 800;
+}
+
+.readiness-high   { color: #2ecc71; }
+.readiness-medium { color: #f39c12; }
+.readiness-low    { color: #e74c3c; }
+
+/* ---- HTML table cells – allow wrapping ---- */
+td, th {
+    white-space: normal !important;
+    word-break: break-word;
+    overflow-wrap: break-word;
+}
+
+/* ---- Bootstrap overrides for dark inputs ---- */
+.form-control, .form-select {
+    background-color: #111111 !important;
+    color: #ffffff !important;
+    border-color: #2a2a2a !important;
+}
+
+.form-control::placeholder {
+    color: #888888 !important;
+}
+
+.form-control:focus {
+    background-color: #1a1a1a !important;
+    color: #ffffff !important;
+    border-color: #4a90e2 !important;
+    box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25) !important;
+}
+
+/* Bootstrap table override */
+.table {
+    color: #ffffff !important;
+}
+
+.table > :not(caption) > * > * {
+    color: #ffffff !important;
+    background-color: transparent !important;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #000000; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #4a90e2; }
+
+/* ---- Mobile sidebar ---- */
+
+/* Sidebar wrapper: desktop default */
+.sidebar-wrapper {
+    width: 220px;
+    flex-shrink: 0;
+}
+
+/* Hamburger button — hidden on desktop */
+.sidebar-hamburger {
+    display: none;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1100;
+    background: #1a1a1a;
+    border: 1px solid #2a2a2a;
+    color: #ffffff;
+    border-radius: 4px;
+    padding: 5px 10px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.sidebar-hamburger:hover {
+    background: #2a2a2a;
+    color: #ffffff;
+}
+
+/* Overlay — covers page content when mobile sidebar is open */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
+}
+
+.sidebar-overlay.sidebar-overlay-visible {
+    display: block;
+}
+
+/* Mobile breakpoint */
+@media (max-width: 991px) {
+    .sidebar-hamburger {
+        display: block;
+    }
+
+    .sidebar-wrapper {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 220px;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-220px);
+        transition: transform 0.25s ease;
+    }
+
+    .sidebar-wrapper.sidebar-visible {
+        transform: translateX(0);
+    }
+
+    #page-content {
+        padding-top: 52px; /* room for the hamburger button */
+    }
+}

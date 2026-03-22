@@ -1,0 +1,18 @@
+pip install -r requirements.txt
+cp .env.example .env         # add FRED_API_KEY for macro data
+python scripts/fetch_data.py AAPL MSFT GOOGL NVDA AMZN
+python scripts/run_server.py
+# → FastAPI: http://127.0.0.1:8000/docs
+# → Dash UI:  http://127.0.0.1:8050
+
+Set-ExecutionPolicy Unrestricted -Scope Process
+.\.venv\Scripts\Activate.ps1
+
+Option A:
+netstat -ano | findstr ":8000"
+tasklist /FI "PID eq {find_PID}"
+
+Option B:
+taskkill /PID {find_PID} /F
+
+python scripts/run_server.py

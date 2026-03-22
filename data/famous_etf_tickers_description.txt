@@ -1,0 +1,44 @@
+Below is practical list of famous, high-liquidity ETFs that map well to the kinds of broad index exposures commonly seen inside retirement-oriented vehicles such as 401(k)s, 403(b)s, target-date structures, and many 529 plan lineups. In practice, those plans often use mutual funds, collective investment trusts, or plan-specific share classes rather than ETFs directly, but the underlying exposures are usually the same broad U.S. stock, international stock, and bond indexes.
+
+SPY - SPDR S&P 500 ETF Trust
+Tracks the S&P 500, which is the classic large-cap U.S. equity benchmark and one of the most widely followed retirement core exposures. It is also one of the most heavily traded ETFs.
+
+QQQ - Invesco QQQ Trust
+Tracks the Nasdaq-100, giving concentrated exposure to large non-financial growth and technology-oriented companies. It is one of the most famous and most actively traded ETFs.
+
+VTI - Vanguard Total Stock Market ETF
+Tracks the broad U.S. stock market, not just the S&P 500, so it includes large-, mid-, and small-cap U.S. equities. This type of total-market exposure is commonly used in retirement portfolios.
+
+IWM - iShares Russell 2000 ETF
+Tracks U.S. small-cap stocks through the Russell 2000. This is a well-known way to add the smaller-company segment that is not fully represented by the S&P 500 alone.
+
+VXUS - Vanguard Total International Stock ETF
+Tracks broad non-U.S. equities across developed and emerging markets. This is a common international building block and also appears in 529-style index menu structures.
+
+VEA - Vanguard FTSE Developed Markets ETF
+Tracks developed markets outside the U.S. This is useful when you want international exposure without emerging markets. It is also a very liquid ETF.
+
+IEMG - iShares Core MSCI Emerging Markets ETF
+Tracks emerging-market equities and is one of the larger, more actively traded emerging-market core ETFs.
+
+BND - Vanguard Total Bond Market ETF
+Tracks the broad U.S. investment-grade bond market. This is one of the most standard bond exposures used in retirement allocation frameworks and official 529 index portfolios.
+
+AGG - iShares Core U.S. Aggregate Bond ETF
+Another broad U.S. core bond ETF, commonly used as the “aggregate bond market” benchmark. It is also highly liquid.
+
+VNQ - Vanguard Real Estate ETF
+Tracks U.S. REITs. Real estate is not always a default core holding in retirement plans, but it is a common “famous section” that many 401(k) menus and diversified portfolios include.
+
+A simple way to think about the sections is:
+- U.S. large cap: SPY
+- U.S. growth / Nasdaq: QQQ
+- U.S. total market: VTI
+- U.S. small cap: IWM
+- International total: VXUS
+- International developed: VEA
+- Emerging markets: IEMG
+- U.S. bonds: BND or AGG
+- Real estate: VNQ
+
+* One important nuance: for actual 401(k), 403(b), Social Security-related retirement saving programs, or 529 plans, you often will not see these exact ETF tickers available to buy directly. Instead, the plan usually offers plan-specific index funds or target-date funds built on these same asset-class exposures.

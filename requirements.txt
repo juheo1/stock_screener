@@ -1,0 +1,43 @@
+# Core backend
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+sqlalchemy>=2.0.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+python-dotenv>=1.0.0
+
+# Data ingestion
+yfinance>=0.2.36
+pandas>=2.2.0
+pandas-datareader>=0.10.0
+fredapi>=0.5.1
+requests>=2.31.0
+
+# Numeric / science
+numpy>=1.26.0
+scipy>=1.12.0
+
+# Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+python-multipart>=0.0.9
+
+# Export
+openpyxl>=3.1.2
+reportlab>=4.1.0
+
+# Scheduling
+apscheduler>=3.10.4
+
+# Frontend
+dash>=2.16.0
+dash-bootstrap-components>=1.6.0
+dash-ag-grid>=31.0.0
+plotly>=5.20.0
+
+# Sentiment / NLP
+vaderSentiment>=3.3.2
+
+# Dev / test
+pytest>=8.0.0
+httpx>=0.27.0
