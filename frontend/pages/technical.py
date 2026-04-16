@@ -10,10 +10,10 @@ Supported types: SMA, EMA, BB, DC, VOLMA
 
 from __future__ import annotations
 
-import base64
 import json
 import math
 import time
+from pathlib import Path
 
 import dash
 import dash_bootstrap_components as dbc
@@ -22,6 +22,49 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
+
+# ---------------------------------------------------------------------------
+# Preset directory (server-side filesystem)
+# ---------------------------------------------------------------------------
+
+_PRESET_DIR = Path(__file__).resolve().parents[2] / "data" / "technical_chart"
+_PRESET_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _list_presets() -> list[str]:
+    """Return sorted list of preset names (without .json extension)."""
+    return sorted(p.stem for p in _PRESET_DIR.glob("*.json"))
+
+
+def _load_preset(name: str) -> dict | None:
+    """Read a preset JSON file by name. Returns None if not found."""
+    path = _PRESET_DIR / f"{name}.json"
+    if not path.is_file():
+        return None
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _save_preset(name: str, preset: dict) -> None:
+    """Write a preset dict as JSON to the preset directory."""
+    safe = "".join(c if c.isalnum() or c in " _-" else "_" for c in name)
+    path = _PRESET_DIR / f"{safe or 'preset'}.json"
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(preset, f, indent=2)
+
+
+def _delete_preset(name: str) -> bool:
+    """Delete a preset file. Returns True if deleted."""
+    path = _PRESET_DIR / f"{name}.json"
+    if path.is_file():
+        path.unlink()
+        return True
+    return False
+
+
+def _preset_dropdown_options() -> list[dict]:
+    """Build dropdown options from preset files on disk."""
+    return [{"label": n, "value": n} for n in _list_presets()]
 
 dash.register_page(
     __name__,
@@ -1176,7 +1219,6 @@ layout = html.Div([
     dcc.Store(id="tech-indicators-store",   data=_DEFAULT_INDICATORS),
     dcc.Store(id="tech-config-ind-id",      data=None),
     dcc.Store(id="tech-fill-between-store", data=[]),
-    dcc.Store(id="tech-preset-upload-data", data=None),
     dcc.Download(id="tech-preset-download"),
 
     # ── Ticker + interval row ─────────────────────────────────────────
@@ -1247,17 +1289,59 @@ layout = html.Div([
             style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
         ),
         dbc.Button(
-            [html.I(className="bi-download me-1"), "Save"],
+            [html.I(className="bi-download me-1"), "Export"],
             id="tech-save-preset-btn",
             size="sm", color="secondary", outline=True,
             style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
         ),
-        dbc.Button(
-            [html.I(className="bi-upload me-1"), "Load"],
-            id="tech-load-preset-btn",
-            size="sm", color="secondary", outline=True,
-            style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
-        ),
+    ], style={
+        "display": "flex", "alignItems": "center",
+        "padding": "7px 14px", "marginBottom": "10px",
+        "backgroundColor": "#0a0a0a", "border": "1px solid #1e1e1e",
+        "borderRadius": "4px", "flexWrap": "wrap", "gap": "6px", "rowGap": "6px",
+    }),
+
+    # ── Preset Library Bar ─────────────────────────────────────────────
+    html.Div([
+        html.Span("PRESETS", style={
+            "color": "#444444", "fontSize": "0.66rem", "fontWeight": 700,
+            "letterSpacing": "0.12em", "flexShrink": 0, "marginRight": "10px",
+            "alignSelf": "center",
+        }),
+        html.Div(id="tech-preset-status",
+                 style={"fontSize": "0.70rem", "minHeight": "18px",
+                        "flexShrink": 0, "marginRight": "8px",
+                        "alignSelf": "center"}),
+        dbc.InputGroup([
+            dbc.Input(
+                id="tech-preset-name-input",
+                placeholder="Preset name…",
+                size="sm",
+                style={"backgroundColor": "#111111", "color": "#ffffff",
+                       "border": "1px solid #2a2a2a", "fontSize": "0.78rem",
+                       "maxWidth": "180px"},
+            ),
+            dbc.Button("Save", id="tech-preset-save-btn",
+                       color="success", outline=True, size="sm", n_clicks=0,
+                       style={"fontSize": "0.76rem", "padding": "3px 10px"}),
+        ], size="sm", style={"flexShrink": 0, "width": "auto", "marginRight": "12px"}),
+        html.Div([
+            dcc.Dropdown(
+                id="tech-preset-select",
+                placeholder="Load a preset…",
+                options=_preset_dropdown_options(),
+                style={"fontSize": "0.78rem", "minWidth": "200px"},
+                clearable=True,
+            ),
+        ], style={"flexShrink": 0, "marginRight": "6px"}),
+        dbc.Button("Load", id="tech-preset-load-btn",
+                   color="primary", outline=True, size="sm", n_clicks=0,
+                   style={"fontSize": "0.76rem", "padding": "3px 10px",
+                          "flexShrink": 0}),
+        dbc.Button("Delete", id="tech-preset-delete-btn",
+                   color="danger", outline=True, size="sm", n_clicks=0,
+                   style={"fontSize": "0.76rem", "padding": "3px 10px",
+                          "flexShrink": 0, "marginLeft": "4px"}),
     ], style={
         "display": "flex", "alignItems": "center",
         "padding": "7px 14px", "marginBottom": "10px",
@@ -1353,7 +1437,7 @@ layout = html.Div([
     # ── Save Preset Modal ─────────────────────────────────────────────
     dbc.Modal([
         dbc.ModalHeader(
-            dbc.ModalTitle("Save Indicator Preset",
+            dbc.ModalTitle("Export Indicator Preset",
                            style={"color": "#ffffff", "fontSize": "1rem"}),
             style=_MODAL_HDR, close_button=True,
         ),
@@ -1370,46 +1454,6 @@ layout = html.Div([
         ], style=_MODAL_FTR),
     ], id="tech-save-preset-modal", is_open=False, centered=True,
        backdrop=True, style={"maxWidth": "480px"}),
-
-    # ── Load Preset Modal ─────────────────────────────────────────────
-    dbc.Modal([
-        dbc.ModalHeader(
-            dbc.ModalTitle("Load Indicator Preset",
-                           style={"color": "#ffffff", "fontSize": "1rem"}),
-            style=_MODAL_HDR, close_button=True,
-        ),
-        dbc.ModalBody(
-            html.Div([
-                dcc.Upload(
-                    id="tech-load-upload",
-                    children=html.Div([
-                        html.I(className="bi-cloud-upload me-2"),
-                        "Drag & Drop or ",
-                        html.A("Browse", style={"color": "#4a90e2", "cursor": "pointer"}),
-                        " a JSON preset file",
-                    ], style={"color": "#888888", "fontSize": "0.84rem"}),
-                    style={
-                        "width": "100%", "height": "60px", "lineHeight": "60px",
-                        "borderWidth": "1px", "borderStyle": "dashed",
-                        "borderRadius": "5px", "borderColor": "#333333",
-                        "textAlign": "center", "backgroundColor": "#0a0a0a",
-                        "marginBottom": "12px",
-                    },
-                    multiple=False,
-                ),
-                html.Div(id="tech-load-preview"),
-            ]),
-            style=_MODAL_BDY,
-        ),
-        dbc.ModalFooter([
-            dbc.Button("Apply", id="tech-load-preset-apply-btn",
-                       color="primary", size="sm", disabled=True),
-            dbc.Button("Cancel", id="tech-load-preset-cancel-btn",
-                       color="secondary", outline=True, size="sm",
-                       style={"marginLeft": "8px"}),
-        ], style=_MODAL_FTR),
-    ], id="tech-load-preset-modal", is_open=False, centered=True,
-       backdrop=True, style={"maxWidth": "520px"}),
 
     # ── Chart ─────────────────────────────────────────────────────────
     dcc.Loading(
@@ -2011,92 +2055,85 @@ def _download_preset(n, selected_ids, include_fb, name, indicators, fill_between
 
 
 # ---------------------------------------------------------------------------
-# Load Preset callbacks
+# Preset Library callbacks (filesystem-based)
 # ---------------------------------------------------------------------------
 
 @callback(
-    Output("tech-load-preset-modal", "is_open"),
-    Input("tech-load-preset-btn",    "n_clicks"),
+    Output("tech-preset-select",  "options", allow_duplicate=True),
+    Output("tech-preset-status",  "children", allow_duplicate=True),
+    Input("tech-preset-save-btn", "n_clicks"),
+    State("tech-preset-name-input", "value"),
+    State("tech-indicators-store",  "data"),
+    State("tech-fill-between-store", "data"),
     prevent_initial_call=True,
 )
-def _open_load_preset_modal(n):
-    return bool(n) if n else no_update
-
-
-@callback(
-    Output("tech-load-preset-modal", "is_open", allow_duplicate=True),
-    Input("tech-load-preset-cancel-btn", "n_clicks"),
-    prevent_initial_call=True,
-)
-def _cancel_load_preset(n):
-    return False if n else no_update
-
-
-@callback(
-    Output("tech-load-preview",          "children"),
-    Output("tech-preset-upload-data",    "data"),
-    Output("tech-load-preset-apply-btn", "disabled"),
-    Input("tech-load-upload",            "contents"),
-    State("tech-load-upload",            "filename"),
-    prevent_initial_call=True,
-)
-def _preview_preset_upload(contents, filename):
-    if not contents:
-        return no_update, no_update, True
-    try:
-        _header, encoded = contents.split(",", 1)
-        raw = base64.b64decode(encoded).decode("utf-8")
-        preset = json.loads(raw)
-        if not isinstance(preset, dict) or "indicators" not in preset:
-            raise ValueError("Invalid preset format")
-    except Exception as exc:
-        err = html.Div(f"Error reading file: {exc}",
-                       style={"color": "#ff4444", "fontSize": "0.80rem"})
-        return err, None, True
-
-    indicators = preset.get("indicators", [])
-    fill_betweens = preset.get("fill_betweens", [])
-    name = preset.get("name", filename or "Unknown")
-    rows = [html.Div(f"Preset: {name}",
-                     style={"color": "#cccccc", "fontSize": "0.84rem",
-                            "fontWeight": 600, "marginBottom": "6px"})]
-    for ind in indicators:
-        lbl = _ind_full_label(ind)
-        s   = ind.get("style", {})
-        col = s.get("color_legend") or s.get("color_basis", ind.get("color", "#888888"))
-        if col == "none":
-            col = "#888888"
-        rows.append(html.Div([
-            html.Span("●", style={"color": col, "marginRight": "5px"}),
-            html.Span(lbl, style={"color": "#aaaaaa", "fontSize": "0.80rem"}),
-        ]))
+def _save_preset_to_library(n, name, indicators, fill_betweens):
+    if not n:
+        raise dash.exceptions.PreventUpdate
+    name = (name or "").strip()
+    if not name:
+        return (no_update,
+                dbc.Alert("Enter a preset name first.", color="warning",
+                          style={"padding": "4px 10px", "fontSize": "0.72rem",
+                                 "marginBottom": 0}))
+    indicators = indicators or []
+    preset = {
+        "version": 1,
+        "name": name,
+        "indicators": indicators,
+    }
     if fill_betweens:
-        rows.append(html.Div(f"+ {len(fill_betweens)} Fill Between rule(s)",
-                             style={"color": "#666666", "fontSize": "0.78rem",
-                                    "marginTop": "4px"}))
-    preview = html.Div(rows, style={"padding": "8px", "backgroundColor": "#111111",
-                                    "borderRadius": "4px", "border": "1px solid #222222"})
-    return preview, preset, False
+        preset["fill_betweens"] = fill_betweens
+    _save_preset(name, preset)
+    opts = _preset_dropdown_options()
+    status = html.Span(f'✓ Saved "{name}"',
+                       style={"color": "#2ecc71", "fontSize": "0.70rem"})
+    return opts, status
 
 
 @callback(
     Output("tech-indicators-store",   "data",    allow_duplicate=True),
     Output("tech-fill-between-store", "data",    allow_duplicate=True),
-    Output("tech-load-preset-modal",  "is_open", allow_duplicate=True),
-    Input("tech-load-preset-apply-btn", "n_clicks"),
-    State("tech-preset-upload-data",  "data"),
-    State("tech-indicators-store",    "data"),
+    Output("tech-preset-status",      "children", allow_duplicate=True),
+    Input("tech-preset-load-btn",     "n_clicks"),
+    State("tech-preset-select",       "value"),
     prevent_initial_call=True,
 )
-def _apply_preset(n, preset, current_indicators):
-    if not n or not preset:
-        return no_update, no_update, no_update
+def _load_preset_from_library(n, selected):
+    if not n or not selected:
+        raise dash.exceptions.PreventUpdate
+    preset = _load_preset(selected)
+    if preset is None:
+        return (no_update, no_update,
+                dbc.Alert(f'Preset "{selected}" not found.', color="danger",
+                          style={"padding": "4px 10px", "fontSize": "0.72rem",
+                                 "marginBottom": 0}))
     new_inds = preset.get("indicators", [])
-    fill_betweens = preset.get("fill_betweens", None)
-    # Merge: append loaded indicators, replacing any with the same ID
-    current = {ind["id"]: ind for ind in (current_indicators or [])}
-    for ind in new_inds:
-        current[ind["id"]] = ind
-    merged = list(current.values())
-    fb_out = fill_betweens if fill_betweens is not None else no_update
-    return merged, fb_out, False
+    fb = preset.get("fill_betweens", None)
+    fb_out = fb if fb is not None else no_update
+    status = html.Span(f'✓ Loaded "{selected}"',
+                       style={"color": "#4a90e2", "fontSize": "0.70rem"})
+    return new_inds, fb_out, status
+
+
+@callback(
+    Output("tech-preset-select",  "options", allow_duplicate=True),
+    Output("tech-preset-select",  "value"),
+    Output("tech-preset-status",  "children", allow_duplicate=True),
+    Input("tech-preset-delete-btn", "n_clicks"),
+    State("tech-preset-select",     "value"),
+    prevent_initial_call=True,
+)
+def _delete_preset_from_library(n, selected):
+    if not n or not selected:
+        raise dash.exceptions.PreventUpdate
+    deleted = _delete_preset(selected)
+    opts = _preset_dropdown_options()
+    if deleted:
+        status = html.Span(f'✓ Deleted "{selected}"',
+                           style={"color": "#e74c3c", "fontSize": "0.70rem"})
+    else:
+        status = dbc.Alert(f'Preset "{selected}" not found.', color="warning",
+                           style={"padding": "4px 10px", "fontSize": "0.72rem",
+                                  "marginBottom": 0})
+    return opts, None, status

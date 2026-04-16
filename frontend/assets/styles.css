@@ -434,3 +434,21 @@ td, th {
         padding-top: 52px; /* room for the hamburger button */
     }
 }
+
+/* ---- Dark-themed Dash dropdowns (Dash 4.0 CSS variable overrides) ---- */
+.dash-dropdown {
+    --Dash-Fill-Inverse-Strong: #1a1a1a;
+    --Dash-Text-Strong: #ffffff;
+    --Dash-Text-Primary: #ffffff;
+    --Dash-Text-Weak: #aaaaaa;
+    --Dash-Text-Disabled: #888888;
+    --Dash-Stroke-Strong: #2a2a2a;
+    --Dash-Stroke-Weak: #2a2a2a;
+    --Dash-Fill-Disabled: rgba(255, 255, 255, 0.1);
+    --Dash-Fill-Interactive-Strong: #4a90e2;
+    --Dash-Fill-Interactive-Weak: rgba(74, 144, 226, 0.15);
+    --Dash-Fill-Primary-Active: rgba(255, 255, 255, 0.08);
+    --Dash-Fill-Primary-Hover: rgba(255, 255, 255, 0.04);
+    --Dash-Shading-Strong: rgba(0, 0, 0, 0.5);
+    --Dash-Shading-Weak: rgba(0, 0, 0, 0.3);
+}

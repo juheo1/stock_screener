@@ -1,0 +1,7 @@
+Revise "Technical Chart" page to be able to load like "Retirement" page.
+I want to use dropdown menu bar which reads from local cache, instead of specifying json myself; it is not convenient having to open the folder everytime.
+I don't know where profile is saved for "Retirement", so let me know where that is saved.
+I already have "BB_day_trade.json" in /data/ dir, so make sure the "Technical Chart" has that too.
+You may re-organize the dir to optimize storage for intuitive understanding of where things are where, such as:
+data/retirement/{profile}
+data/technical_chart/{profile}.json
