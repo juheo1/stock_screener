@@ -31,6 +31,30 @@ PARAMS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Visualization bundle — auto-loaded when strategy runs
+# ---------------------------------------------------------------------------
+
+CHART_BUNDLE = {
+    "indicators": [
+        {
+            "id": "fast-ma",
+            "type": "SMA",
+            "color": "#f0c040",
+            "params": {"period": 10, "source": "Close"},
+            "style": {"color_basis": "#f0c040", "color_legend": "#f0c040"},
+        },
+        {
+            "id": "slow-ma",
+            "type": "SMA",
+            "color": "#4a90e2",
+            "params": {"period": 50, "source": "Close"},
+            "style": {"color_basis": "#4a90e2", "color_legend": "#4a90e2"},
+        },
+    ],
+}
+
+
 def strategy(ctx: StrategyContext) -> StrategyResult:
     fast_period = int(ctx.params.get("fast_period", PARAMS["fast_period"]["default"]))
     slow_period = int(ctx.params.get("slow_period", PARAMS["slow_period"]["default"]))

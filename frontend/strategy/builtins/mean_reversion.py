@@ -36,6 +36,40 @@ PARAMS = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Visualization bundle — auto-loaded when strategy runs
+# ---------------------------------------------------------------------------
+
+# BB with stddev=2.0 matches the default z_entry threshold, visually showing
+# the entry/exit zones around the rolling mean.
+CHART_BUNDLE = {
+    "indicators": [
+        {
+            "id": "mean-rev-ma",
+            "type": "SMA",
+            "color": "#f0c040",
+            "params": {"period": 20, "source": "Close"},
+            "style": {"color_basis": "#f0c040", "color_legend": "#f0c040"},
+        },
+        {
+            "id": "mean-rev-bb",
+            "type": "BB",
+            "color": "none",
+            "params": {
+                "length": 20, "stddev": 2.0, "offset": 0,
+                "ma_type": "SMA", "source": "Close",
+            },
+            "style": {
+                "color_basis": "none",
+                "color_upper": "#4a90e2",
+                "color_lower": "#4a90e2",
+                "color_legend": "#4a90e2",
+            },
+        },
+    ],
+}
+
+
 def strategy(ctx: StrategyContext) -> StrategyResult:
     lookback = int(ctx.params.get("lookback", PARAMS["lookback"]["default"]))
     z_entry  = float(ctx.params.get("z_entry",  PARAMS["z_entry"]["default"]))

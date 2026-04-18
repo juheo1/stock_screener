@@ -2498,18 +2498,22 @@ def _run_strategy(n, selected, chart_data,
         "performance": perf,
     }
 
-    # Auto-load chart bundle if the strategy declares one
-    bundle_inds   = no_update
-    bundle_fb     = no_update
+    # Auto-load chart bundle if the strategy declares one.
+    # Always reset indicators/fill-betweens so stale indicators from a prior
+    # strategy (or manual additions) are cleared before loading the new ones.
+    bundle_inds = []
+    bundle_fb   = []
     bundle = get_chart_bundle(module)
     if bundle:
-        preset_name = bundle.get("preset")
+        preset_name    = bundle.get("preset")
+        loaded_preset  = False
         if preset_name:
             preset = _load_preset(preset_name)
             if preset:
-                bundle_inds = preset.get("indicators", no_update)
-                bundle_fb   = preset.get("fill_betweens", [])
-        if bundle_inds is no_update and "indicators" in bundle:
+                bundle_inds   = preset.get("indicators", [])
+                bundle_fb     = preset.get("fill_betweens", [])
+                loaded_preset = True
+        if not loaded_preset and "indicators" in bundle:
             bundle_inds = bundle["indicators"]
             bundle_fb   = bundle.get("fill_betweens", [])
 
