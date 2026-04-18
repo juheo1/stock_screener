@@ -390,6 +390,11 @@ def save_user_strategy(
     return slug
 
 
+def get_chart_bundle(strategy_module: types.ModuleType) -> dict | None:
+    """Return the CHART_BUNDLE dict from a strategy module, or None if absent."""
+    return getattr(strategy_module, "CHART_BUNDLE", None)
+
+
 def delete_user_strategy(name: str) -> bool:
     """
     Delete a user strategy .py and .json from data/strategies/.
