@@ -27,6 +27,7 @@ from frontend.strategy.engine import (
     StrategyError,
     compute_performance,
     delete_user_strategy,
+    get_chart_bundle,
     list_strategies,
     load_strategy,
     run_strategy,
@@ -2411,6 +2412,8 @@ def _strategy_param_panel(selected):
 @callback(
     Output("tech-strategy-store",     "data"),
     Output("tech-strategy-perf-card", "children"),
+    Output("tech-indicators-store",   "data",    allow_duplicate=True),
+    Output("tech-fill-between-store", "data",    allow_duplicate=True),
     Input("tech-strategy-run-btn",    "n_clicks"),
     State("tech-strategy-select",     "value"),
     State("tech-chart-data",          "data"),
@@ -2425,11 +2428,12 @@ def _run_strategy(n, selected, chart_data,
     _err_style = {"padding": "4px 10px", "fontSize": "0.72rem", "marginBottom": 0}
 
     if not n or not selected:
-        return no_update, no_update
+        return no_update, no_update, no_update, no_update
 
     if not chart_data:
         return (no_update,
-                dbc.Alert("Load chart data first.", color="warning", style=_err_style))
+                dbc.Alert("Load chart data first.", color="warning", style=_err_style),
+                no_update, no_update)
 
     # Collect parameters from form
     params: dict = {}
@@ -2455,7 +2459,8 @@ def _run_strategy(n, selected, chart_data,
     except Exception as exc:
         return (no_update,
                 dbc.Alert(f"Could not rebuild chart data: {exc}",
-                          color="danger", style=_err_style))
+                          color="danger", style=_err_style),
+                no_update, no_update)
 
     # Find strategy metadata
     strategies = list_strategies()
@@ -2463,7 +2468,8 @@ def _run_strategy(n, selected, chart_data,
     if info is None:
         return (no_update,
                 dbc.Alert(f'Strategy "{selected}" not found.',
-                          color="danger", style=_err_style))
+                          color="danger", style=_err_style),
+                no_update, no_update)
 
     # Load and run
     try:
@@ -2480,7 +2486,8 @@ def _run_strategy(n, selected, chart_data,
         )
     except StrategyError as exc:
         return (no_update,
-                dbc.Alert(str(exc), color="danger", style=_err_style))
+                dbc.Alert(str(exc), color="danger", style=_err_style),
+                no_update, no_update)
 
     perf = compute_performance(df, result.signals)
 
@@ -2491,7 +2498,22 @@ def _run_strategy(n, selected, chart_data,
         "performance": perf,
     }
 
-    return store, _build_perf_card(info["display_name"], perf)
+    # Auto-load chart bundle if the strategy declares one
+    bundle_inds   = no_update
+    bundle_fb     = no_update
+    bundle = get_chart_bundle(module)
+    if bundle:
+        preset_name = bundle.get("preset")
+        if preset_name:
+            preset = _load_preset(preset_name)
+            if preset:
+                bundle_inds = preset.get("indicators", no_update)
+                bundle_fb   = preset.get("fill_betweens", [])
+        if bundle_inds is no_update and "indicators" in bundle:
+            bundle_inds = bundle["indicators"]
+            bundle_fb   = bundle.get("fill_betweens", [])
+
+    return store, _build_perf_card(info["display_name"], perf), bundle_inds, bundle_fb
 
 
 @callback(
