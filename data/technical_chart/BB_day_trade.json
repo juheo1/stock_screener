@@ -101,5 +101,19 @@
         "color_legend": "#ff4444"
       }
     }
+  ],
+  "fill_betweens": [
+    {
+      "id": "fb-green-lower",
+      "curve1": "bb-1773623894787:lower",
+      "curve2": "bb-1773624309667:lower",
+      "color": "#44ff88"
+    },
+    {
+      "id": "fb-red-upper",
+      "curve1": "bb-1773624430636:upper",
+      "curve2": "bb-1773624457500:upper",
+      "color": "#ff4444"
+    }
   ]
 }
