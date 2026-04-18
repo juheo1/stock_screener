@@ -23,6 +23,16 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
 
+from frontend.strategy.engine import (
+    StrategyError,
+    compute_performance,
+    delete_user_strategy,
+    list_strategies,
+    load_strategy,
+    run_strategy,
+    save_user_strategy,
+)
+
 # ---------------------------------------------------------------------------
 # Preset directory (server-side filesystem)
 # ---------------------------------------------------------------------------
@@ -197,11 +207,14 @@ _DEFAULT_INDICATORS: list[dict] = [
 # Colour constants
 # ---------------------------------------------------------------------------
 
-_C_UP   = "#26a69a"
-_C_DOWN = "#ef5350"
-_BG     = "#000000"
-_GRID   = "#1c1c1c"
-_AX     = "#666666"
+_C_UP        = "#26a69a"
+_C_DOWN      = "#ef5350"
+_BG          = "#000000"
+_GRID        = "#1c1c1c"
+_AX          = "#666666"
+_C_STRAT_BUY  = "#00e676"   # bright green  – buy marker
+_C_STRAT_SELL = "#ff1744"   # vivid red     – sell marker
+_MARKER_OFFSET = 0.005       # fraction above/below candle for signal triangles
 
 # ---------------------------------------------------------------------------
 # Label helpers
@@ -407,6 +420,7 @@ def _build_figure(
     interval_key: str,
     computed_inds: list[dict],
     fill_betweens: list[dict] | None = None,
+    signals: "pd.Series | None" = None,
 ) -> go.Figure:
 
     vol_ind     = next((c for c in computed_inds if c["type"] == "VOLMA"), None)
@@ -589,6 +603,39 @@ def _build_figure(
         whiskerwidth=0.6,
         hoverinfo="skip",
     ), row=1, col=1)
+
+    # ── Strategy signal markers ──────────────────────────────────────
+    if signals is not None and len(signals) == len(df):
+        buy_mask  = signals == 1
+        sell_mask = signals == -1
+        if buy_mask.any():
+            fig.add_trace(go.Scatter(
+                x=df.index[buy_mask],
+                y=df["Low"][buy_mask] * (1 - _MARKER_OFFSET),
+                mode="markers",
+                marker=dict(
+                    symbol="triangle-up", size=10, color=_C_STRAT_BUY,
+                    line=dict(color=_C_STRAT_BUY, width=1),
+                ),
+                name="Buy",
+                legendgroup="strategy-signals",
+                showlegend=True,
+                hovertemplate="<b>BUY</b><br>%{x}<extra></extra>",
+            ), row=1, col=1)
+        if sell_mask.any():
+            fig.add_trace(go.Scatter(
+                x=df.index[sell_mask],
+                y=df["High"][sell_mask] * (1 + _MARKER_OFFSET),
+                mode="markers",
+                marker=dict(
+                    symbol="triangle-down", size=10, color=_C_STRAT_SELL,
+                    line=dict(color=_C_STRAT_SELL, width=1),
+                ),
+                name="Sell",
+                legendgroup="strategy-signals",
+                showlegend=True,
+                hovertemplate="<b>SELL</b><br>%{x}<extra></extra>",
+            ), row=1, col=1)
 
     # ── Volume subplot ───────────────────────────────────────────────
     if show_volume and vol_ind:
@@ -1204,6 +1251,94 @@ _MODAL_HDR = {"backgroundColor": "#111111", "borderBottom": "1px solid #2a2a2a"}
 _MODAL_FTR = {"backgroundColor": "#111111", "borderTop":    "1px solid #2a2a2a"}
 _MODAL_BDY = {"backgroundColor": "#0d0d0d"}
 
+
+# ---------------------------------------------------------------------------
+# Strategy helpers
+# ---------------------------------------------------------------------------
+
+def _strategy_dropdown_options() -> list[dict]:
+    """Build dropdown options from all available strategies."""
+    options = []
+    for s in list_strategies():
+        prefix = "[built-in] " if s["is_builtin"] else ""
+        options.append({"label": prefix + s["display_name"], "value": s["name"]})
+    return options
+
+
+def _build_strategy_param_form(params_spec: dict) -> list:
+    """Auto-generate parameter form fields from a strategy PARAMS dict."""
+    _num_style = {
+        "width": "75px", "backgroundColor": "#111111",
+        "color": "#ffffff", "border": "1px solid #2a2a2a",
+        "fontSize": "0.78rem",
+    }
+    _lbl_style = {
+        "color": "#888888", "fontSize": "0.72rem",
+        "marginRight": "4px", "whiteSpace": "nowrap",
+    }
+    _dd_style = {"fontSize": "0.78rem", "minWidth": "100px"}
+    items = []
+    for key, spec in params_spec.items():
+        ptype = spec.get("type", "int")
+        label = spec.get("desc", key)
+        default = spec.get("default")
+        wrap = {"display": "flex", "alignItems": "center", "gap": "3px"}
+        if ptype in ("int", "float"):
+            step = 1 if ptype == "int" else 0.1
+            items.append(html.Div([
+                html.Span(f"{label}:", style=_lbl_style),
+                dbc.Input(
+                    id={"type": "tech-strat-num", "index": key},
+                    type="number", value=default,
+                    min=spec.get("min"), max=spec.get("max"), step=step,
+                    size="sm", style=_num_style,
+                ),
+            ], style=wrap))
+        elif ptype == "choice":
+            options = [{"label": o, "value": o} for o in spec.get("options", [])]
+            items.append(html.Div([
+                html.Span(f"{label}:", style=_lbl_style),
+                dcc.Dropdown(
+                    id={"type": "tech-strat-dd", "index": key},
+                    options=options, value=default, clearable=False,
+                    style=_dd_style,
+                ),
+            ], style=wrap))
+    return items
+
+
+def _build_perf_card(display_name: str, perf: dict) -> html.Div:
+    """Render a one-line performance summary below the chart."""
+    trade_count = perf.get("trade_count", 0)
+    if trade_count == 0:
+        return html.Div(
+            f"Strategy '{display_name}' — no trades generated on this data.",
+            style={"color": "#555555", "fontSize": "0.72rem", "marginTop": "4px"},
+        )
+    total_pnl  = perf["total_pnl"]
+    avg_pnl    = perf["avg_pnl"]
+    win_rate   = perf["win_rate"] * 100
+    pnl_color  = _C_STRAT_BUY if total_pnl >= 0 else _C_STRAT_SELL
+    sign_total = "+" if total_pnl >= 0 else ""
+    sign_avg   = "+" if avg_pnl   >= 0 else ""
+    sep = html.Span("  ·  ", style={"color": "#333333"})
+    return html.Div([
+        html.Span(f"Strategy: {display_name}",
+                  style={"color": "#888888", "fontSize": "0.72rem"}),
+        sep,
+        html.Span(f"{trade_count} trades",
+                  style={"color": "#aaaaaa", "fontSize": "0.72rem"}),
+        sep,
+        html.Span(f"Win rate: {win_rate:.1f}%",
+                  style={"color": "#aaaaaa", "fontSize": "0.72rem"}),
+        sep,
+        html.Span(f"Total P&L: {sign_total}{total_pnl:.2f}",
+                  style={"color": pnl_color, "fontSize": "0.72rem"}),
+        sep,
+        html.Span(f"Avg/trade: {sign_avg}{avg_pnl:.2f}",
+                  style={"color": "#aaaaaa", "fontSize": "0.72rem"}),
+    ], style={"marginTop": "4px"})
+
 # ---------------------------------------------------------------------------
 # Layout
 # ---------------------------------------------------------------------------
@@ -1219,6 +1354,7 @@ layout = html.Div([
     dcc.Store(id="tech-indicators-store",   data=_DEFAULT_INDICATORS),
     dcc.Store(id="tech-config-ind-id",      data=None),
     dcc.Store(id="tech-fill-between-store", data=[]),
+    dcc.Store(id="tech-strategy-store",     data=None),
     dcc.Download(id="tech-preset-download"),
 
     # ── Ticker + interval row ─────────────────────────────────────────
@@ -1349,6 +1485,91 @@ layout = html.Div([
         "borderRadius": "4px", "flexWrap": "wrap", "gap": "6px", "rowGap": "6px",
     }),
 
+    # ── Strategy Bar ──────────────────────────────────────────────────
+    html.Div([
+        html.Span(
+            "STRATEGY",
+            style={"color": "#444444", "fontSize": "0.66rem", "fontWeight": 700,
+                   "letterSpacing": "0.12em", "flexShrink": 0,
+                   "marginRight": "10px", "alignSelf": "center"},
+        ),
+        dcc.Dropdown(
+            id="tech-strategy-select",
+            placeholder="Select a strategy…",
+            options=_strategy_dropdown_options(),
+            clearable=True,
+            style={"fontSize": "0.78rem", "minWidth": "220px", "flexShrink": 0},
+        ),
+        html.Div(
+            id="tech-strategy-param-panel",
+            style={"display": "flex", "flex": "1", "alignItems": "center",
+                   "flexWrap": "wrap", "gap": "8px", "marginLeft": "10px"},
+        ),
+        dbc.Button(
+            [html.I(className="bi-play-fill me-1"), "Run"],
+            id="tech-strategy-run-btn",
+            size="sm", color="success", outline=True, n_clicks=0,
+            style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
+        ),
+        dbc.Button(
+            [html.I(className="bi-x-lg me-1"), "Clear"],
+            id="tech-strategy-clear-btn",
+            size="sm", color="secondary", outline=True, n_clicks=0,
+            style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
+        ),
+        dbc.Button(
+            [html.I(className="bi-arrow-clockwise me-1"), "Reload"],
+            id="tech-strategy-reload-btn",
+            size="sm", color="secondary", outline=True, n_clicks=0,
+            style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
+        ),
+        dbc.Button(
+            [html.I(className="bi-plus-lg me-1"), "New"],
+            id="tech-strategy-new-btn",
+            size="sm", color="secondary", outline=True, n_clicks=0,
+            style={"fontSize": "0.76rem", "flexShrink": 0, "padding": "3px 10px"},
+        ),
+    ], style={
+        "display": "flex", "alignItems": "center",
+        "padding": "7px 14px", "marginBottom": "10px",
+        "backgroundColor": "#0a0a0a", "border": "1px solid #1e1e1e",
+        "borderRadius": "4px", "flexWrap": "wrap", "gap": "6px", "rowGap": "6px",
+    }),
+
+    # ── New Strategy Modal ────────────────────────────────────────────
+    dbc.Modal([
+        dbc.ModalHeader(
+            dbc.ModalTitle("New Strategy",
+                           style={"color": "#ffffff", "fontSize": "1rem"}),
+            style=_MODAL_HDR, close_button=True,
+        ),
+        dbc.ModalBody(
+            html.Div([
+                html.Div("Strategy name:",
+                         style={"color": "#888888", "fontSize": "0.80rem",
+                                "marginBottom": "4px"}),
+                dbc.Input(
+                    id="tech-strategy-new-name",
+                    placeholder="e.g. My Strategy",
+                    size="sm",
+                    style={"backgroundColor": "#111111", "color": "#ffffff",
+                           "border": "1px solid #2a2a2a", "marginBottom": "8px"},
+                ),
+                html.Div(id="tech-strategy-new-path",
+                         style={"fontSize": "0.74rem", "color": "#666666"}),
+            ]),
+            style=_MODAL_BDY,
+        ),
+        dbc.ModalFooter([
+            dbc.Button("Create", id="tech-strategy-create-btn",
+                       color="success", size="sm"),
+            dbc.Button("Cancel", id="tech-strategy-new-cancel-btn",
+                       color="secondary", outline=True, size="sm",
+                       style={"marginLeft": "8px"}),
+        ], style=_MODAL_FTR),
+    ], id="tech-strategy-new-modal", is_open=False, centered=True,
+       backdrop=True, style={"maxWidth": "420px"}),
+
     # ── Add Indicator Modal ───────────────────────────────────────────
     dbc.Modal([
         dbc.ModalHeader(
@@ -1476,6 +1697,7 @@ layout = html.Div([
         style={"display": "flex", "gap": "8px", "flexWrap": "wrap",
                "marginTop": "8px", "minHeight": "70px"},
     ),
+    html.Div(id="tech-strategy-perf-card"),
     html.Div(
         id="tech-status",
         style={"marginTop": "4px", "fontSize": "0.72rem", "color": "#444444"},
@@ -1672,8 +1894,9 @@ def _cancel_config(n):
     Input("tech-indicators-store",   "data"),
     Input("tech-load-btn",           "n_clicks"),
     Input("tech-fill-between-store", "data"),
+    Input("tech-strategy-store",     "data"),
 )
-def _update_chart(ticker, interval_key, indicators, _load, fill_betweens):
+def _update_chart(ticker, interval_key, indicators, _load, fill_betweens, strategy_store):
     ticker       = (ticker or "AAPL").strip().upper()
     interval_key = interval_key or _DEFAULT_IV
     indicators   = indicators or []
@@ -1694,7 +1917,16 @@ def _update_chart(ticker, interval_key, indicators, _load, fill_betweens):
         return empty, f"Could not load data for {ticker} ({interval_key}).", None
 
     computed_inds = [_compute_indicator(df, ind) for ind in indicators]
-    fig = _build_figure(df, ticker, interval_key, computed_inds, fill_betweens or [])
+
+    # Extract signals from strategy store if length still matches current data
+    signals = None
+    if strategy_store and "signals" in strategy_store:
+        raw = strategy_store["signals"]
+        if len(raw) == len(df):
+            signals = pd.Series(raw, index=df.index, dtype=int)
+
+    fig = _build_figure(df, ticker, interval_key, computed_inds, fill_betweens or [],
+                        signals=signals)
 
     intraday   = interval_key in _INTRADAY_IVS
     fmt        = "%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d"
@@ -2137,3 +2369,189 @@ def _delete_preset_from_library(n, selected):
                            style={"padding": "4px 10px", "fontSize": "0.72rem",
                                   "marginBottom": 0})
     return opts, None, status
+
+
+# ---------------------------------------------------------------------------
+# Strategy callbacks
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("tech-strategy-select", "options", allow_duplicate=True),
+    Input("tech-strategy-reload-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def _reload_strategy_options(n):
+    """Refresh the strategy dropdown from disk (for newly added user strategies)."""
+    if not n:
+        return no_update
+    return _strategy_dropdown_options()
+
+
+@callback(
+    Output("tech-strategy-param-panel", "children"),
+    Input("tech-strategy-select", "value"),
+    prevent_initial_call=True,
+)
+def _strategy_param_panel(selected):
+    """Build the parameter form when a strategy is selected."""
+    if not selected:
+        return []
+    strategies = list_strategies()
+    info = next((s for s in strategies if s["name"] == selected), None)
+    if info is None:
+        return []
+    try:
+        module = load_strategy(selected, is_builtin=info["is_builtin"])
+    except StrategyError:
+        return []
+    params_spec = getattr(module, "PARAMS", {})
+    return _build_strategy_param_form(params_spec)
+
+
+@callback(
+    Output("tech-strategy-store",     "data"),
+    Output("tech-strategy-perf-card", "children"),
+    Input("tech-strategy-run-btn",    "n_clicks"),
+    State("tech-strategy-select",     "value"),
+    State("tech-chart-data",          "data"),
+    State({"type": "tech-strat-num", "index": ALL}, "value"),
+    State({"type": "tech-strat-num", "index": ALL}, "id"),
+    State({"type": "tech-strat-dd",  "index": ALL}, "value"),
+    State({"type": "tech-strat-dd",  "index": ALL}, "id"),
+    prevent_initial_call=True,
+)
+def _run_strategy(n, selected, chart_data,
+                  num_vals, num_ids, dd_vals, dd_ids):
+    _err_style = {"padding": "4px 10px", "fontSize": "0.72rem", "marginBottom": 0}
+
+    if not n or not selected:
+        return no_update, no_update
+
+    if not chart_data:
+        return (no_update,
+                dbc.Alert("Load chart data first.", color="warning", style=_err_style))
+
+    # Collect parameters from form
+    params: dict = {}
+    for val, id_d in zip(num_vals, num_ids):
+        if val is not None:
+            params[id_d["index"]] = val
+    for val, id_d in zip(dd_vals, dd_ids):
+        if val is not None:
+            params[id_d["index"]] = val
+
+    # Reconstruct DataFrame from chart store
+    try:
+        dates = pd.to_datetime(chart_data["dates"])
+        df = pd.DataFrame(
+            {
+                "Open":   chart_data["open"],
+                "High":   chart_data["high"],
+                "Low":    chart_data["low"],
+                "Close":  chart_data["close"],
+            },
+            index=dates,
+        )
+    except Exception as exc:
+        return (no_update,
+                dbc.Alert(f"Could not rebuild chart data: {exc}",
+                          color="danger", style=_err_style))
+
+    # Find strategy metadata
+    strategies = list_strategies()
+    info = next((s for s in strategies if s["name"] == selected), None)
+    if info is None:
+        return (no_update,
+                dbc.Alert(f'Strategy "{selected}" not found.',
+                          color="danger", style=_err_style))
+
+    # Load and run
+    try:
+        module = load_strategy(selected, is_builtin=info["is_builtin"])
+        result = run_strategy(
+            df,
+            chart_data.get("ticker", ""),
+            chart_data.get("interval", ""),
+            module,
+            params,
+            _get_source,
+            _compute_ma,
+            _compute_indicator,
+        )
+    except StrategyError as exc:
+        return (no_update,
+                dbc.Alert(str(exc), color="danger", style=_err_style))
+
+    perf = compute_performance(df, result.signals)
+
+    store = {
+        "name":        selected,
+        "signals":     result.signals.tolist(),
+        "dates":       chart_data["dates"],
+        "performance": perf,
+    }
+
+    return store, _build_perf_card(info["display_name"], perf)
+
+
+@callback(
+    Output("tech-strategy-store",     "data",     allow_duplicate=True),
+    Output("tech-strategy-perf-card", "children", allow_duplicate=True),
+    Input("tech-strategy-clear-btn",  "n_clicks"),
+    prevent_initial_call=True,
+)
+def _clear_strategy(n):
+    if not n:
+        return no_update, no_update
+    return None, []
+
+
+@callback(
+    Output("tech-strategy-new-modal", "is_open"),
+    Output("tech-strategy-new-path",  "children"),
+    Input("tech-strategy-new-btn",    "n_clicks"),
+    prevent_initial_call=True,
+)
+def _open_new_strategy_modal(n):
+    if not n:
+        return no_update, no_update
+    return True, []
+
+
+@callback(
+    Output("tech-strategy-new-modal",  "is_open",  allow_duplicate=True),
+    Output("tech-strategy-select",     "options",  allow_duplicate=True),
+    Output("tech-strategy-new-path",   "children", allow_duplicate=True),
+    Input("tech-strategy-create-btn",  "n_clicks"),
+    State("tech-strategy-new-name",    "value"),
+    prevent_initial_call=True,
+)
+def _create_new_strategy(n, name):
+    _err_style = {"color": "#e74c3c", "fontSize": "0.74rem", "marginTop": "4px"}
+    if not n:
+        return no_update, no_update, no_update
+    name = (name or "").strip()
+    if not name:
+        return (no_update, no_update,
+                html.Span("Please enter a strategy name.", style=_err_style))
+    try:
+        slug = save_user_strategy(name)
+    except Exception as exc:
+        return (no_update, no_update,
+                html.Span(f"Error: {exc}", style=_err_style))
+    opts    = _strategy_dropdown_options()
+    py_path = Path(__file__).resolve().parents[2] / "data" / "strategies" / f"{slug}.py"
+    msg     = html.Span(
+        f"Created: {py_path}  — edit then click Reload.",
+        style={"color": "#2ecc71", "fontSize": "0.72rem"},
+    )
+    return False, opts, msg
+
+
+@callback(
+    Output("tech-strategy-new-modal",     "is_open",  allow_duplicate=True),
+    Input("tech-strategy-new-cancel-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def _cancel_new_strategy(n):
+    return False if n else no_update
