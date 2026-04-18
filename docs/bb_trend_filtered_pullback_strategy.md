@@ -384,7 +384,140 @@ This exit triggers regardless of P&L. If the ratchet SL is hit before the time l
 
 ---
 
-## 15. Assumptions and Open Questions
+## 15. Strategy Parameter Tuning Guide
+
+This section explains how each parameter affects strategy behavior and provides guidance for calibrating them via backtesting. The goal is to help traders adapt the strategy to different instruments and market conditions without overfitting.
+
+### 15.1 General Tuning Principles
+
+1. **Change one parameter at a time.** Isolate the effect of each change before adjusting the next.
+2. **Use out-of-sample validation.** Split your data into a training period (for tuning) and a holdout period (for validation). Parameters that only work on training data are overfit.
+3. **Favor robustness over optimization.** A parameter set that performs well across a range of values (e.g., `wick_rejection_min` = 0.65–0.75 all profitable) is more reliable than one that only works at a single precise value.
+4. **Re-tune when the regime changes.** Parameters calibrated for a trending bull market may underperform in a choppy or bearish regime. Revisit periodically.
+
+### 15.2 Parameter-by-Parameter Tuning
+
+#### `bb_period` (default: 20)
+
+| Effect of increasing | Effect of decreasing |
+|---------------------|---------------------|
+| Wider bands, fewer touches, fewer trades | Narrower bands, more touches, more trades |
+| Filters out shallow pullbacks | Catches shallower pullbacks but increases noise |
+
+- **Typical range:** 15–30 for daily bars.
+- **Guidance:** 20 is the standard Bollinger Band period. Shorter periods (15) suit faster-trending instruments. Longer periods (25–30) suit slower, steadier trends. If your backtest shows too many stopped-out trades, try increasing to 25.
+
+#### `bb_std_dev` (default: 2.0)
+
+| Effect of increasing | Effect of decreasing |
+|---------------------|---------------------|
+| Wider bands, deeper pullback required for entry | Narrower bands, shallower pullback triggers entry |
+| Fewer but higher-conviction entries | More entries but higher false-signal rate |
+
+- **Typical range:** 1.5–2.5.
+- **Guidance:** 2.0 is standard. If you observe that price frequently touches the band but reverses before reaching the zone, try 1.8. If too many entries are getting stopped out, the entry zone may be too shallow — try 2.2–2.5.
+
+#### `sma_period` (default: 20)
+
+- **Keep equal to `bb_period`** in most cases. The SMA serves as the trend filter that aligns with the BB midline. Decoupling them (e.g., SMA=50, BB=20) creates a mismatch between the trend filter and the entry zone — the strategy spec assumes they are aligned.
+- **Exception:** If you want a longer-term trend filter (e.g., SMA=50) while keeping tight entry zones (BB=20), test carefully — you may get entries against the medium-term trend.
+
+#### `slope_lookback` (default: 5)
+
+| Effect of increasing | Effect of decreasing |
+|---------------------|---------------------|
+| Smoother slope, less sensitive to short-term chop | More reactive slope, catches trend changes faster |
+| May lag trend reversals by several bars | May flip between trending/sideways too often |
+
+- **Typical range:** 3–10.
+- **Guidance:** 5 bars is a good balance for daily data. If your instrument trends smoothly (e.g., large-cap indices), try 7–10. If it trends in sharp bursts (e.g., momentum stocks), try 3–4.
+
+#### `slope_threshold` (default: TBD — start with `price * 0.002`)
+
+This is the **most important parameter to calibrate** and the most instrument-dependent.
+
+| Effect of increasing | Effect of decreasing |
+|---------------------|---------------------|
+| Only trades in strong trends, fewer trades | Trades in weaker trends, more trades |
+| Avoids choppy markets, fewer whipsaws | More entries but higher whipsaw rate |
+
+- **Calibration method:**
+  1. Compute `SMA_slope` for your target instrument over the backtest period.
+  2. Plot a histogram of absolute slope values.
+  3. Set the threshold at roughly the **60th–70th percentile** — this ensures you only trade the top 30–40% of trending bars.
+  4. Alternatively, start with `price * 0.002` (0.2% of price) and adjust:
+     - Increase to `price * 0.003` if too many losing trades in choppy zones.
+     - Decrease to `price * 0.001` if trade frequency is too low.
+- **Normalization:** Always express as a fraction of price when comparing across instruments. A $0.50 slope means very different things for a $25 stock vs a $500 stock.
+
+#### `wick_rejection_min` (default: 0.70)
+
+| Effect of increasing (e.g., 0.80) | Effect of decreasing (e.g., 0.60) |
+|-----------------------------------|-----------------------------------|
+| Stricter filter, requires extreme rejection candles | Looser filter, accepts moderate rejection candles |
+| Fewer trades, higher per-trade win rate | More trades, lower per-trade win rate |
+
+- **Typical range:** 0.60–0.85.
+- **Guidance:** 0.70 is a solid starting point. If your backtest shows a good win rate but not enough trades, lower to 0.65. If the win rate is below 40%, raise to 0.75–0.80. Values above 0.85 are extremely restrictive and may produce fewer than 5 trades per year on most instruments.
+
+#### `min_candle_range` (default: 0.001)
+
+- **Purpose:** Filters out doji/near-zero-range candles where wick ratios become numerically unstable.
+- **Typical range:** 0.0005–0.005 (as fraction of price).
+- **Guidance:** Rarely needs tuning. Increase to 0.002–0.003 if the instrument frequently prints tiny-range candles (e.g., low-volatility ETFs). Decrease to 0.0005 for higher-volatility instruments.
+
+#### `rr_ratio` (default: 2.0)
+
+| Effect of increasing (e.g., 3.0) | Effect of decreasing (e.g., 1.5) |
+|----------------------------------|----------------------------------|
+| Higher per-trade profit target, lower win rate | Lower per-trade profit target, higher win rate |
+| Needs stronger trends to reach TP | More trades close profitably |
+
+- **Typical range:** 1.5–3.0.
+- **Guidance:** 2.0 is the strategy's designed ratio. Lowering to 1.5 improves win rate but reduces average profit — only do this if the ratchet mechanism compensates by locking in gains. Increasing to 3.0 is viable for strongly trending instruments but expect the win rate to drop below 35%.
+
+#### `max_short_bars` (default: 5)
+
+| Effect of increasing (e.g., 10) | Effect of decreasing (e.g., 3) |
+|---------------------------------|--------------------------------|
+| Gives shorts more time to develop | Forces faster short exits |
+| Higher exposure to adverse reversals | Lower risk per trade but may exit before profit develops |
+
+- **Typical range:** 3–10.
+- **Guidance:** Since shorts are secondary in this strategy, keep the default unless backtesting shows that profitable shorts consistently need 7+ bars to reach their target. If most short exits are time-based losses, reduce to 3.
+
+### 15.3 Common Parameter Profiles
+
+| Profile | Instruments | Key changes from defaults |
+|---------|-------------|--------------------------|
+| **Conservative** | Large-cap, slow-trending | `bb_std_dev=2.2`, `slope_threshold=price*0.003`, `wick_rejection_min=0.75` |
+| **Moderate** (default) | Mid-cap, typical trending | All defaults |
+| **Aggressive** | Momentum stocks, volatile | `bb_std_dev=1.8`, `slope_threshold=price*0.001`, `wick_rejection_min=0.65`, `slope_lookback=3` |
+
+### 15.4 Backtesting Checklist for Parameter Validation
+
+After tuning, verify the following on your out-of-sample holdout period:
+
+- [ ] Win rate is above 35% (below this, even 2:1 R:R is net negative after costs)
+- [ ] Average winner is at least 1.5x average loser
+- [ ] Trade frequency is sufficient (at least 10–15 trades per year for statistical significance)
+- [ ] Maximum drawdown is acceptable for your risk tolerance
+- [ ] Parameters are not at extreme edges of their ranges (edge values suggest overfitting)
+- [ ] Performance is stable across at least 2 adjacent parameter values (robustness test)
+- [ ] No single trade dominates total P&L (if removing the best trade turns the strategy negative, results are unreliable)
+
+### 15.5 Avoiding Overfitting
+
+| Warning sign | What it means | What to do |
+|-------------|---------------|------------|
+| Optimal value is at an extreme (e.g., `wick_rejection_min=0.95`) | Likely fitting to noise, not signal | Use a value closer to the center of the profitable range |
+| Small parameter change causes large performance swing | Strategy is fragile at this setting | Widen to a more robust value or simplify the parameter |
+| In-sample Sharpe > 2.0 but out-of-sample < 0.5 | Classic overfit | Reduce parameter count, use simpler thresholds |
+| Strategy only works on one specific instrument | Parameters are instrument-specific, not generalizable | Test across a basket of 5+ similar instruments |
+
+---
+
+## 16. Assumptions and Open Questions
 
 ### Assumptions Made During Formalization
 
@@ -426,7 +559,7 @@ All open questions have been resolved.
 
 ---
 
-## 16. Risks, Weaknesses, and Invalidation Scenarios
+## 17. Risks, Weaknesses, and Invalidation Scenarios
 
 ### Structural Weaknesses
 

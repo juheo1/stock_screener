@@ -509,7 +509,7 @@ save/load requirements. No database changes, no new config files.
 
 ```
 docs/
-├── bb_trend_filtered_pullback_strategy.md   # existing — full strategy spec
+├── bb_trend_filtered_pullback_strategy.md   # existing — full strategy spec + parameter tuning guide (Section 15)
 ├── architecture_strategy_system.md          # NEW
 ├── technical_indicators.md                  # NEW
 ├── indicator_parameters.md                  # NEW
@@ -518,8 +518,7 @@ docs/
 ├── strategy_helpers_indicators.md           # NEW
 ├── strategy_file_structure.md               # NEW
 ├── strategy_loading_saving.md               # NEW
-├── strategy_chart_bundle.md                 # NEW
-└── strategy_bb_trend_pullback.md            # NEW — implementation notes
+└── strategy_chart_bundle.md                 # NEW
 ```
 
 ### 11.2 File purposes
@@ -535,7 +534,10 @@ docs/
 | `strategy_file_structure.md` | How to create a new strategy | Required module-level names (`PARAMS`, `strategy()`, `CHART_BUNDLE`), file placement | 40–50 lines |
 | `strategy_loading_saving.md` | How strategies are discovered, loaded, and saved | Engine flow, filesystem layout, JSON sidecar format | 40–50 lines |
 | `strategy_chart_bundle.md` | How a strategy declares its chart indicator bundle | Bundle format, preset reference vs inline, auto-load flow | 50–60 lines |
-| `strategy_bb_trend_pullback.md` | Implementation notes for this specific strategy | Parameter meanings, signal logic summary, usage tips | 50–60 lines |
+
+> **Note:** Parameter tuning guide and implementation notes are included in the existing
+> `bb_trend_filtered_pullback_strategy.md` as Section 15 rather than a separate file,
+> keeping the full strategy specification self-contained.
 
 ### 11.3 Design principles for docs
 
@@ -628,7 +630,7 @@ stock_screener/
 │   ├── test_risk.py                              # NEW
 │   └── test_bb_strategy.py                       # NEW
 ├── docs/
-│   ├── bb_trend_filtered_pullback_strategy.md    # existing — full spec
+│   ├── bb_trend_filtered_pullback_strategy.md    # existing — full spec + tuning guide (Section 15)
 │   ├── architecture_strategy_system.md           # NEW
 │   ├── technical_indicators.md                   # NEW
 │   ├── indicator_parameters.md                   # NEW
@@ -637,8 +639,7 @@ stock_screener/
 │   ├── strategy_helpers_indicators.md            # NEW
 │   ├── strategy_file_structure.md                # NEW
 │   ├── strategy_loading_saving.md                # NEW
-│   ├── strategy_chart_bundle.md                  # NEW
-│   └── strategy_bb_trend_pullback.md             # NEW
+│   └── strategy_chart_bundle.md                  # NEW
 └── plan/
     └── bb_trend_filtered_pullback_strategy_plan.md  # this file
 ```
@@ -660,4 +661,4 @@ stock_screener/
 | Signal rendering | ✅ triangle markers | — | — |
 | Strategy file I/O | ✅ save/load/list/delete | — | — |
 | BB_day_trade preset | ✅ 4 BBs + SMA + VOLMA | Add `fill_betweens` for ribbon zones | — |
-| Docs | ✅ strategy spec | — | 10 new topic files |
+| Docs | ✅ strategy spec + tuning guide (Section 15) | — | 9 new topic files |
