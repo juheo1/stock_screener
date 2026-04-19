@@ -3,16 +3,17 @@ src.scheduler
 =============
 APScheduler-based background job orchestration.
 
-The scheduler runs two daily jobs:
+The scheduler runs three daily jobs:
 1. ``refresh_equity_data``  -- re-fetch financial statements + prices.
 2. ``refresh_macro_metals`` -- re-fetch FRED series + metals prices.
+3. ``run_daily_scan``       -- end-of-day strategy signal detection.
 
 The scheduler is started from :mod:`src.api.main` on FastAPI startup.
 
 Public API
 ----------
 get_scheduler()
-start_scheduler(app_state)
+start_scheduler()
 stop_scheduler()
 """
 
@@ -79,6 +80,47 @@ def refresh_macro_metals() -> None:
         db.close()
 
 
+def run_daily_scan() -> None:
+    """Job: end-of-day strategy signal detection across the ETF universe."""
+    from datetime import date
+    from src.scanner.calendar import is_trading_day
+    from src.scanner.orchestrator import run_backfill, run_scan
+    from src.config import settings
+
+    today = date.today()
+    logger.info("[Scheduler] Starting daily scan at %s", datetime.now())
+
+    # 1. Backfill any missed trading dates first
+    try:
+        missed = run_backfill(history_days=settings.scanner_history_days)
+        if missed:
+            logger.info("[Scheduler] Backfilled %d missing scan dates.", len(missed))
+    except Exception as exc:
+        logger.warning("[Scheduler] Backfill failed: %s", exc)
+
+    # 2. Run today's scan (skip if not a trading day)
+    if not is_trading_day(today):
+        logger.info("[Scheduler] %s is not a trading day — scan skipped.", today)
+        return
+
+    # Resolve ETF list from config
+    etf_tickers: list[str] | None = None
+    if settings.scanner_etfs:
+        etf_tickers = [e.strip() for e in settings.scanner_etfs.split(",") if e.strip()]
+
+    try:
+        job_id = run_scan(
+            scan_date=today,
+            trigger_type="scheduled",
+            etf_tickers=etf_tickers,
+        )
+        logger.info("[Scheduler] Daily scan completed. Job ID: %d", job_id)
+    except RuntimeError as exc:
+        logger.warning("[Scheduler] Daily scan skipped: %s", exc)
+    except Exception as exc:
+        logger.error("[Scheduler] Daily scan failed: %s", exc)
+
+
 def get_scheduler() -> BackgroundScheduler:
     """Return the singleton :class:`BackgroundScheduler` instance.
 
@@ -122,14 +164,40 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    scheduler.add_job(
+        run_daily_scan,
+        trigger=CronTrigger(
+            hour=settings.scanner_hour,
+            minute=settings.scanner_minute,
+        ),
+        id="daily_strategy_scan",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info(
-        "[Scheduler] Started. Equity job at %02d:%02d UTC, macro/metals at %02d:%02d UTC.",
+        "[Scheduler] Started. Equity job at %02d:%02d UTC, macro/metals at %02d:%02d UTC, "
+        "scanner at %02d:%02d UTC.",
         settings.scheduler_hour,
         settings.scheduler_minute,
         settings.scheduler_hour,
         settings.scheduler_minute + 15,
+        settings.scanner_hour,
+        settings.scanner_minute,
     )
+
+    # Run startup backfill check (non-blocking background thread)
+    import threading
+
+    def _startup_backfill():
+        try:
+            from src.scanner.orchestrator import run_backfill
+            run_backfill(history_days=settings.scanner_history_days)
+        except Exception as exc:
+            logger.warning("[Scheduler] Startup backfill failed: %s", exc)
+
+    _t = threading.Thread(target=_startup_backfill, daemon=True, name="scanner-backfill-init")
+    _t.start()
 
 
 def stop_scheduler() -> None:

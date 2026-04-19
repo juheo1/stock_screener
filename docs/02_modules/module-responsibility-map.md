@@ -191,12 +191,65 @@ and writing it to SQLite. They are independent of each other.
 | **Responsibility** | `TradeState` dataclass; `RatchetTracker` (stateful trailing SL/TP); `compute_sl_long/short` |
 | **Edit for** | Trade management logic; ratchet behavior |
 
+### `frontend/strategy/data.py`
+| | |
+|-|-|
+| **Responsibility** | Extracted pure pandas/numpy helpers from `technical.py`; shared by scanner and Technical Chart |
+| **Key interface** | `fetch_ohlcv()`, `get_source()`, `compute_ma()`, `compute_indicator()`, `get_fb_curve()`, `compute_vol_stats()` |
+| **Collaborators** | `frontend/pages/technical.py` (importer), `src/scanner/orchestrator.py` (importer) |
+| **Anti-responsibility** | Dash/UI code; strategy logic |
+| **Edit for** | Fixing OHLCV fetch behavior, indicator math |
+
+### `frontend/strategy/chart.py`
+| | |
+|-|-|
+| **Responsibility** | Extracted `build_figure()` from `technical.py`; shared by scanner drill-down and Technical Chart |
+| **Key interface** | `build_figure(df, ticker, interval_key, indicators, signals, strategy_name)` |
+| **Collaborators** | `frontend/pages/technical.py`, `frontend/pages/scanner.py` |
+| **Anti-responsibility** | OHLCV fetch; strategy logic |
+| **Edit for** | Chart appearance, Plotly layout, signal marker style |
+
 ### `frontend/strategy/builtins/<name>.py`
 | | |
 |-|-|
 | **Responsibility** | One self-contained strategy implementation per file |
 | **Key contract** | Must export `strategy(ctx) -> StrategyResult` and optionally `PARAMS` dict and `CHART_BUNDLE` dict |
 | **Edit for** | Fixing or tuning a built-in strategy |
+
+---
+
+## Backend: `src/scanner/`
+
+### `src/scanner/models.py`
+| | |
+|-|-|
+| **Responsibility** | SQLAlchemy ORM for scanner: `ScanJob`, `ScanSignal`, `ScanBacktest` tables |
+| **Collaborators** | `src/database.py` (table creation), `src/scanner/orchestrator.py` (queries) |
+| **Edit for** | Adding columns to scanner tables |
+
+### `src/scanner/calendar.py`
+| | |
+|-|-|
+| **Responsibility** | US trading-day calendar — `is_trading_day()`, `last_n_trading_days()`, `missing_scan_dates()` |
+| **Collaborators** | `src/scanner/orchestrator.py` |
+| **Edit for** | Adding future holiday years; correcting observed holiday dates |
+
+### `src/scanner/universe.py`
+| | |
+|-|-|
+| **Responsibility** | ETF-constituent universe resolution with deduplication and 7-day disk cache |
+| **Key interface** | `resolve_universe(etf_tickers)` → `UniverseSnapshot` |
+| **Collaborators** | `src/ingestion/etf.py` (holdings fetch), `src/scanner/orchestrator.py` |
+| **Edit for** | Changing cache TTL; adjusting `DEFAULT_SCANNER_ETFS` |
+
+### `src/scanner/orchestrator.py`
+| | |
+|-|-|
+| **Responsibility** | Main scan logic: universe resolution, parallel OHLCV fetch, signal detection, backtest, DB write |
+| **Key interface** | `run_scan(scan_date, trigger_type)`, `run_backfill(history_days)`, `is_scan_running()`, `get_scan_status(job_id)` |
+| **Collaborators** | `src/scanner/{models,calendar,universe}.py`, `frontend/strategy/{engine,data}.py`, `src/database.py` |
+| **Anti-responsibility** | UI; direct API routing |
+| **Edit for** | Changing scan concurrency, batch size, signal history window |
 
 ---
 

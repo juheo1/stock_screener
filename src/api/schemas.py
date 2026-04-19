@@ -466,3 +466,86 @@ class ComputeRequest(BaseModel):
 class FetchResponse(BaseModel):
     results: dict[str, Any]
     message: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Daily Strategy Scanner
+# ---------------------------------------------------------------------------
+
+class ScanTriggerRequest(BaseModel):
+    """Request body for POST /api/scanner/trigger."""
+    strategy_slugs: list[str] | None = None  # None = all built-in strategies
+    etf_tickers: list[str] | None = None     # None = default ETF universe
+    force: bool = False                       # True = recompute even if completed scan exists
+
+
+class ScanTriggerResponse(BaseModel):
+    """Response for POST /api/scanner/trigger."""
+    job_id: int
+    message: str = ""
+    was_reused: bool = False   # True when an existing completed scan was returned without re-running
+
+
+class ScanStatusResponse(BaseModel):
+    """Response for GET /api/scanner/status."""
+    id: int
+    scan_date: str
+    status: str
+    trigger_type: str
+    ticker_count: int
+    signal_count: int
+    started_at: str | None
+    completed_at: str | None
+    error_message: str | None
+    strategies: list[str]
+    universe_etfs: list[str]
+    is_running: bool = False
+
+
+class ScanSignalItem(BaseModel):
+    """A single detected signal row."""
+    ticker: str
+    strategy: str
+    strategy_display_name: str
+    win_rate: float | None = None       # 0.0–1.0 from backtest
+    trade_count: int | None = None      # completed trades in backtest
+    signal_type: int          # 1 = BUY, -1 = SELL
+    signal_date: str          # ISO date string
+    close_price: float | None
+    days_ago: int
+    source_etfs: list[str]
+
+
+class ScanResultsResponse(BaseModel):
+    """Response for GET /api/scanner/results."""
+    scan_date: str
+    status: str
+    job_id: int
+    latest_buys:  list[ScanSignalItem]
+    latest_sells: list[ScanSignalItem]
+    past_buys:    list[ScanSignalItem]
+    past_sells:   list[ScanSignalItem]
+    latest_trading_date: str | None = None
+
+
+class ScanBacktestItem(BaseModel):
+    """Backtest summary for one ticker × strategy pair."""
+    ticker: str
+    strategy: str
+    strategy_display_name: str
+    trade_count: int
+    win_rate: float
+    total_pnl: float
+    avg_pnl: float
+    trades: list[dict]
+    data_start_date: str | None
+    data_end_date: str | None
+    bar_count: int | None
+
+
+class ScanUniverseResponse(BaseModel):
+    """Response for GET /api/scanner/universe."""
+    source_etfs: list[str]
+    ticker_count: int
+    resolved_at: str
+    tickers: list[str]

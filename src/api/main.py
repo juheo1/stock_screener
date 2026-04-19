@@ -100,6 +100,7 @@ def create_app() -> FastAPI:
         metals,
         news,
         retirement,
+        scanner,
         screener,
         sentiment,
         zombies,
@@ -119,6 +120,7 @@ def create_app() -> FastAPI:
     app.include_router(disasters.router)
     app.include_router(geopolitical.router)
     app.include_router(calendar.router)
+    app.include_router(scanner.router)
     app.include_router(admin.router)
 
     @app.get("/", tags=["health"])

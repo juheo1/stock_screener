@@ -36,6 +36,7 @@ This is the most important document for AI agents. Read this before opening any 
 | 15 | [Refactor strategy engine helpers](#15-refactor-strategy-engine-helpers) |
 | 16 | [Fix retirement planner logic](#16-fix-retirement-planner-logic) |
 | 17 | [Update documentation after code changes](#17-update-documentation-after-code-changes) |
+| 18 | [Fix or extend the daily strategy scanner](#18-fix-or-extend-the-daily-strategy-scanner) |
 
 ---
 
@@ -62,6 +63,7 @@ This is the most important document for AI agents. Read this before opening any 
 | Zombie Kill List | `frontend/pages/zombies.py` |
 | Batch Compare | `frontend/pages/compare.py` |
 | Technical Analysis | `frontend/pages/technical.py` |
+| Strategy Scanner | `frontend/pages/scanner.py` |
 | Retirement Planner | `frontend/pages/retirement.py` |
 | Metals Intel | `frontend/pages/metals.py` |
 | Macro Monitor | `frontend/pages/macro.py` |
@@ -283,6 +285,9 @@ See `frontend/strategy/builtins/bb_trend_pullback.py` as reference implementatio
 | `test_sentiment_news.py` | `src/ingestion/news.py`, `sentiment.py` |
 | `test_geopolitical.py` | `src/ingestion/geopolitical.py` |
 | `test_macro_regime_presets.py` | Macro preset logic |
+| `test_scanner_calendar.py` | `src/scanner/calendar.py` |
+| `test_scanner_universe.py` | `src/scanner/universe.py` |
+| `test_scanner_orchestrator.py` | `src/scanner/orchestrator.py` (pure unit tests) |
 
 ---
 
@@ -319,3 +324,31 @@ See `frontend/strategy/builtins/bb_trend_pullback.py` as reference implementatio
 | **Likely edit files** | `docs/02_modules/package-file-index.md` (new files); `docs/02_modules/module-responsibility-map.md` (responsibility shifts); `docs/03_reference/api-contracts-and-extension-points.md` (API changes) |
 | **Secondary files** | `README.md` (user-facing features); `ARCHITECTURE.md` (stale — prefer updating `docs/01_architecture/` instead) |
 | **Confidence** | High |
+
+---
+
+## 18. Fix or Extend the Daily Strategy Scanner
+
+| | |
+|-|-|
+| **Primary files** | `src/scanner/orchestrator.py`, `frontend/pages/scanner.py` |
+| **Likely edit files** | Depends on sub-task (see below) |
+| **Docs** | `docs/06_scanner/` |
+| **Tests** | `pytest tests/test_scanner_calendar.py tests/test_scanner_universe.py tests/test_scanner_orchestrator.py -v` |
+| **Confidence** | High |
+
+**Sub-task routing**:
+
+| Sub-task | Primary files |
+|----------|---------------|
+| Add/change a holiday | `src/scanner/calendar.py` (`_US_HOLIDAYS`) |
+| Change universe ETFs | `src/scanner/universe.py` (`DEFAULT_SCANNER_ETFS`) |
+| Change scan schedule | `src/config.py` (`scanner_hour`, `scanner_minute`) + `.env` |
+| Change history window | `src/config.py` (`scanner_history_days`) |
+| Change OHLCV fetch concurrency | `src/scanner/orchestrator.py` (`_FETCH_WORKERS`, `_FETCH_BATCH_SIZE`) |
+| Fix signal detection logic | `src/scanner/orchestrator.py:_extract_recent_signals()` |
+| Add new scanner API endpoint | `src/api/routers/scanner.py` + `src/api/schemas.py` + `frontend/api_client.py` |
+| Fix scanner Dash page | `frontend/pages/scanner.py` |
+| Fix drill-down chart | `frontend/strategy/chart.py:build_figure()` |
+| Fix shared OHLCV/indicator helpers | `frontend/strategy/data.py` |
+| Add/change scanner DB columns | `src/scanner/models.py` + `src/database.py:init_db()` (re-import) |

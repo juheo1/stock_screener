@@ -590,3 +590,70 @@ def delete_stack_transaction(tx_index: int, user_id: str = "default") -> dict | 
     except Exception as exc:
         logger.error("DELETE /metals/stack/transaction/%d failed: %s", tx_index, exc)
         return None
+
+
+# ---------------------------------------------------------------------------
+# Daily Strategy Scanner
+# ---------------------------------------------------------------------------
+
+_SCANNER_TIMEOUT = 30   # seconds for scanner API calls
+
+
+def scanner_get_status(job_id: int | None = None) -> dict | None:
+    """Return scan status for the latest job, or a specific job by ID."""
+    params = {"job_id": job_id} if job_id is not None else None
+    return _get("/api/scanner/status", params=params)
+
+
+def scanner_get_results(scan_date: str | None = None) -> dict | None:
+    """Return signal results for the latest (or a given) completed scan.
+
+    Parameters
+    ----------
+    scan_date:
+        ISO date string (YYYY-MM-DD).  ``None`` = latest completed scan.
+    """
+    params = {"scan_date": scan_date} if scan_date else None
+    return _get("/api/scanner/results", params=params)
+
+
+def scanner_trigger(
+    strategy_slugs: list[str] | None = None,
+    etf_tickers: list[str] | None = None,
+    force: bool = False,
+) -> dict | None:
+    """Manually trigger a daily strategy scan.
+
+    Parameters
+    ----------
+    force:
+        When ``True``, forces a full recompute even if a completed scan already
+        exists for today.  The existing results are replaced.
+
+    Returns ``None`` if the request fails (e.g. a scan is already running).
+    """
+    payload: dict = {}
+    if strategy_slugs is not None:
+        payload["strategy_slugs"] = strategy_slugs
+    if etf_tickers is not None:
+        payload["etf_tickers"] = etf_tickers
+    if force:
+        payload["force"] = True
+    return _post("/api/scanner/trigger", payload, timeout=_SCANNER_TIMEOUT)
+
+
+def scanner_get_backtest(
+    ticker: str,
+    strategy: str,
+    scan_date: str | None = None,
+) -> dict | None:
+    """Return the stored backtest summary for a ticker × strategy pair."""
+    params: dict = {"ticker": ticker, "strategy": strategy}
+    if scan_date:
+        params["scan_date"] = scan_date
+    return _get("/api/scanner/backtest", params=params)
+
+
+def scanner_get_universe() -> dict | None:
+    """Return the current universe snapshot (cached or freshly resolved)."""
+    return _get("/api/scanner/universe")

@@ -77,6 +77,12 @@ docs/
     strategy_mean_reversion.md           ← mean reversion strategy
     strategy_bb_trend_filtered_pullback.md ← BB trend-filtered pullback strategy
     bb_based_mean_reversion_intraday.md  ← BB intraday mean reversion strategy
+  06_scanner/
+    architecture.md                      ← scanner system design and component diagram
+    scan-state-persistence.md            ← scan_jobs / scan_signals / scan_backtests schema
+    signal-result-schema.md              ← API response shapes for results and backtests
+    strategy-registry-reuse.md           ← how scanner shares the strategy engine
+    chart-drill-down.md                  ← drill-down chart and backtest panel
 ```
 
 ---

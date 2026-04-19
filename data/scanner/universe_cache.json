@@ -1,0 +1,1776 @@
+{
+  "tickers": [
+    "AAON",
+    "AAPL",
+    "ABBV",
+    "ABEV",
+    "ABNB",
+    "ABT",
+    "ACN",
+    "ADBE",
+    "ADI",
+    "ADP",
+    "ALGN",
+    "AMAT",
+    "AMD",
+    "AMETEK",
+    "AMGN",
+    "AMT",
+    "AMZN",
+    "ANSS",
+    "APH",
+    "APP",
+    "APTV",
+    "ARM",
+    "ASML",
+    "AVGO",
+    "AXON",
+    "AXP",
+    "AZN",
+    "BABA",
+    "BAC",
+    "BBD",
+    "BC",
+    "BCE",
+    "BHP",
+    "BIDU",
+    "BIIB",
+    "BILL",
+    "BKNG",
+    "BLK",
+    "BMO",
+    "BNS",
+    "BOOT",
+    "BP",
+    "BRK-B",
+    "BSBR",
+    "BSX",
+    "BTI",
+    "BUD",
+    "BURL",
+    "BWXT",
+    "BX",
+    "C",
+    "CACI",
+    "CART",
+    "CAT",
+    "CAVA",
+    "CB",
+    "CBRE",
+    "CCL",
+    "CDNS",
+    "CDW",
+    "CEG",
+    "CELH",
+    "CFLT",
+    "CHH",
+    "CHTR",
+    "CHWY",
+    "CI",
+    "CIB",
+    "CL",
+    "CMCSA",
+    "CME",
+    "CMG",
+    "CNQ",
+    "CNR",
+    "COIN",
+    "COST",
+    "CP",
+    "CPRT",
+    "CRM",
+    "CROX",
+    "CRVL",
+    "CRWD",
+    "CSCO",
+    "CSWI",
+    "CTAS",
+    "CTRE",
+    "CTSH",
+    "CVCO",
+    "CVE",
+    "CVX",
+    "CW",
+    "CZR",
+    "DDOG",
+    "DE",
+    "DECK",
+    "DEO",
+    "DHI",
+    "DHR",
+    "DKNG",
+    "DLR",
+    "DLTR",
+    "DORM",
+    "DSGX",
+    "DT",
+    "DUK",
+    "DXCM",
+    "E",
+    "EA",
+    "EBAY",
+    "ELF",
+    "ELV",
+    "ENB",
+    "ENPH",
+    "EOG",
+    "EPRT",
+    "EQIX",
+    "ERIC",
+    "ESTC",
+    "ETN",
+    "EXC",
+    "EXPO",
+    "FANG",
+    "FAST",
+    "FCNCA",
+    "FCX",
+    "FI",
+    "FITB",
+    "FIVE",
+    "FND",
+    "FSLR",
+    "FTNT",
+    "FTV",
+    "FUTU",
+    "GD",
+    "GE",
+    "GEHC",
+    "GEN",
+    "GFF",
+    "GFS",
+    "GGB",
+    "GILD",
+    "GNRC",
+    "GOLD",
+    "GOOG",
+    "GOOGL",
+    "GRBK",
+    "GS",
+    "GSK",
+    "GTLB",
+    "HCA",
+    "HD",
+    "HDB",
+    "HIMS",
+    "HLT",
+    "HMC",
+    "HON",
+    "HOOD",
+    "HUBS",
+    "IBM",
+    "IBN",
+    "IDXX",
+    "IEMG",
+    "ILMN",
+    "IMO",
+    "INFY",
+    "INTC",
+    "INTU",
+    "IOSP",
+    "IQ",
+    "ISRG",
+    "ITUB",
+    "ITW",
+    "IWM",
+    "JD",
+    "JNJ",
+    "JPM",
+    "KB",
+    "KHC",
+    "KLAC",
+    "KO",
+    "LEN",
+    "LGIH",
+    "LHX",
+    "LI",
+    "LIN",
+    "LKQ",
+    "LLY",
+    "LRCX",
+    "LSPD",
+    "LU",
+    "LULU",
+    "MA",
+    "MAR",
+    "MCD",
+    "MCHP",
+    "MCO",
+    "MDC",
+    "MDLZ",
+    "MDT",
+    "MELI",
+    "META",
+    "MG",
+    "MGA",
+    "MGEE",
+    "MGM",
+    "MGRC",
+    "MMC",
+    "MNDY",
+    "MNST",
+    "MO",
+    "MQ",
+    "MRK",
+    "MRNA",
+    "MRVL",
+    "MS",
+    "MSFT",
+    "MU",
+    "MYRG",
+    "NCLH",
+    "NEE",
+    "NEM",
+    "NET",
+    "NFLX",
+    "NIO",
+    "NOC",
+    "NOK",
+    "NOW",
+    "NSC",
+    "NTES",
+    "NU",
+    "NVDA",
+    "NVO",
+    "NVR",
+    "NVS",
+    "NVT",
+    "NXPI",
+    "O",
+    "ODFL",
+    "OMCL",
+    "ON",
+    "ONON",
+    "ORAN",
+    "ORCL",
+    "ORLY",
+    "OTEX",
+    "PANW",
+    "PAYC",
+    "PAYX",
+    "PBR",
+    "PCAR",
+    "PCTY",
+    "PDD",
+    "PEP",
+    "PGR",
+    "PH",
+    "PHG",
+    "PHM",
+    "PLD",
+    "PLTR",
+    "PLXS",
+    "PM",
+    "PRFT",
+    "PSA",
+    "PYPL",
+    "QCOM",
+    "QFIN",
+    "QQQ",
+    "QRVO",
+    "RCI",
+    "RCL",
+    "REGN",
+    "RIO",
+    "RIVN",
+    "ROP",
+    "ROST",
+    "RTX",
+    "RUN",
+    "RY",
+    "SAIA",
+    "SAIC",
+    "SAP",
+    "SBUX",
+    "SCCO",
+    "SE",
+    "SEDG",
+    "SFM",
+    "SHAK",
+    "SHEL",
+    "SHG",
+    "SHOP",
+    "SID",
+    "SIRI",
+    "SKM",
+    "SKY",
+    "SMCI",
+    "SNOW",
+    "SNPS",
+    "SNY",
+    "SO",
+    "SOFI",
+    "SONY",
+    "SPG",
+    "SPGI",
+    "SPSC",
+    "SPY",
+    "STM",
+    "STZ",
+    "SU",
+    "SYK",
+    "TCOM",
+    "TD",
+    "TDY",
+    "TEAM",
+    "TEF",
+    "TJX",
+    "TM",
+    "TME",
+    "TMHC",
+    "TMO",
+    "TMUS",
+    "TNET",
+    "TOL",
+    "TRP",
+    "TSLA",
+    "TSM",
+    "TTD",
+    "TTE",
+    "TTWO",
+    "TXN",
+    "UL",
+    "UNH",
+    "USB",
+    "V",
+    "VALE",
+    "VEA",
+    "VEEV",
+    "VIPS",
+    "VNQ",
+    "VRSK",
+    "VRTPX",
+    "VRTX",
+    "VTI",
+    "VXUS",
+    "WBD",
+    "WDAY",
+    "WELL",
+    "WFC",
+    "WING",
+    "WIT",
+    "WM",
+    "WMT",
+    "WRLD",
+    "WSM",
+    "WYNN",
+    "XEL",
+    "XOM",
+    "XPEV",
+    "YETI",
+    "YMM",
+    "ZS",
+    "ZTS"
+  ],
+  "ticker_to_etfs": {
+    "AAPL": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "MSFT": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "NVDA": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "AMZN": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "META": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "GOOGL": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "GOOG": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "BRK-B": [
+      "SPY",
+      "VTI"
+    ],
+    "TSLA": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "AVGO": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "JPM": [
+      "SPY",
+      "VTI"
+    ],
+    "LLY": [
+      "SPY",
+      "VTI"
+    ],
+    "V": [
+      "SPY",
+      "VTI"
+    ],
+    "XOM": [
+      "SPY",
+      "VTI"
+    ],
+    "MA": [
+      "SPY",
+      "VTI"
+    ],
+    "COST": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "UNH": [
+      "SPY",
+      "VTI"
+    ],
+    "HD": [
+      "SPY",
+      "VTI"
+    ],
+    "ORCL": [
+      "SPY",
+      "VTI"
+    ],
+    "NFLX": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "WMT": [
+      "SPY",
+      "VTI"
+    ],
+    "BAC": [
+      "SPY",
+      "VTI"
+    ],
+    "JNJ": [
+      "SPY",
+      "VTI"
+    ],
+    "CRM": [
+      "SPY",
+      "VTI"
+    ],
+    "CVX": [
+      "SPY",
+      "VTI"
+    ],
+    "ABBV": [
+      "SPY",
+      "VTI"
+    ],
+    "MRK": [
+      "SPY",
+      "VTI"
+    ],
+    "TMUS": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "AMD": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "KO": [
+      "SPY",
+      "VTI"
+    ],
+    "WFC": [
+      "SPY",
+      "VTI"
+    ],
+    "TMO": [
+      "SPY",
+      "VTI"
+    ],
+    "CSCO": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "ACN": [
+      "SPY",
+      "VTI"
+    ],
+    "PEP": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "NOW": [
+      "SPY",
+      "VTI"
+    ],
+    "PM": [
+      "SPY",
+      "VTI"
+    ],
+    "MCD": [
+      "SPY",
+      "VTI"
+    ],
+    "ABT": [
+      "SPY",
+      "VTI"
+    ],
+    "GE": [
+      "SPY",
+      "VTI"
+    ],
+    "ISRG": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "TXN": [
+      "SPY",
+      "VTI"
+    ],
+    "IBM": [
+      "SPY",
+      "VTI"
+    ],
+    "CAT": [
+      "SPY",
+      "VTI"
+    ],
+    "AMGN": [
+      "SPY",
+      "VTI"
+    ],
+    "SPGI": [
+      "SPY",
+      "VTI"
+    ],
+    "LIN": [
+      "SPY",
+      "VTI"
+    ],
+    "DHR": [
+      "SPY",
+      "VTI"
+    ],
+    "BX": [
+      "SPY",
+      "VTI"
+    ],
+    "NEE": [
+      "SPY",
+      "VTI"
+    ],
+    "MS": [
+      "SPY",
+      "VTI"
+    ],
+    "GS": [
+      "SPY",
+      "VTI"
+    ],
+    "RTX": [
+      "SPY",
+      "VTI"
+    ],
+    "HON": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "BLK": [
+      "SPY",
+      "VTI"
+    ],
+    "BKNG": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "AXP": [
+      "SPY",
+      "VTI"
+    ],
+    "REGN": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "DE": [
+      "SPY",
+      "VTI"
+    ],
+    "VRTX": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "ADI": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "LRCX": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "SYK": [
+      "SPY",
+      "VTI"
+    ],
+    "MMC": [
+      "SPY",
+      "VTI"
+    ],
+    "PANW": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "BSX": [
+      "SPY",
+      "VTI"
+    ],
+    "PGR": [
+      "SPY",
+      "VTI"
+    ],
+    "ETN": [
+      "SPY",
+      "VTI"
+    ],
+    "MDT": [
+      "SPY",
+      "VTI"
+    ],
+    "CB": [
+      "SPY",
+      "VTI"
+    ],
+    "GILD": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "AMAT": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "C": [
+      "SPY",
+      "VTI"
+    ],
+    "SO": [
+      "SPY",
+      "VTI"
+    ],
+    "TJX": [
+      "SPY",
+      "VTI"
+    ],
+    "MO": [
+      "SPY",
+      "VTI"
+    ],
+    "MDLZ": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "SBUX": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "ADP": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "DUK": [
+      "SPY",
+      "VTI"
+    ],
+    "INTU": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "CI": [
+      "SPY",
+      "VTI"
+    ],
+    "HCA": [
+      "SPY",
+      "VTI"
+    ],
+    "CL": [
+      "SPY",
+      "VTI"
+    ],
+    "ZTS": [
+      "SPY",
+      "VTI"
+    ],
+    "ELV": [
+      "SPY",
+      "VTI"
+    ],
+    "APH": [
+      "SPY",
+      "VTI"
+    ],
+    "EOG": [
+      "SPY",
+      "VTI"
+    ],
+    "ITW": [
+      "SPY",
+      "VTI"
+    ],
+    "CME": [
+      "SPY",
+      "VTI"
+    ],
+    "NOC": [
+      "SPY",
+      "VTI"
+    ],
+    "WM": [
+      "SPY",
+      "VTI"
+    ],
+    "FI": [
+      "SPY",
+      "VTI"
+    ],
+    "PH": [
+      "SPY",
+      "VTI"
+    ],
+    "USB": [
+      "SPY",
+      "VTI"
+    ],
+    "MCO": [
+      "SPY",
+      "VTI"
+    ],
+    "GD": [
+      "SPY",
+      "VTI"
+    ],
+    "KLAC": [
+      "SPY",
+      "QQQ",
+      "VTI"
+    ],
+    "FITB": [
+      "SPY",
+      "VTI"
+    ],
+    "NSC": [
+      "SPY",
+      "VTI"
+    ],
+    "SPY": [
+      "SPY"
+    ],
+    "QCOM": [
+      "QQQ"
+    ],
+    "ADBE": [
+      "QQQ"
+    ],
+    "CMCSA": [
+      "QQQ"
+    ],
+    "MU": [
+      "QQQ"
+    ],
+    "SNPS": [
+      "QQQ"
+    ],
+    "CDNS": [
+      "QQQ"
+    ],
+    "FTNT": [
+      "QQQ"
+    ],
+    "MELI": [
+      "QQQ",
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "INTC": [
+      "QQQ"
+    ],
+    "PYPL": [
+      "QQQ"
+    ],
+    "CTAS": [
+      "QQQ"
+    ],
+    "MRVL": [
+      "QQQ"
+    ],
+    "PCAR": [
+      "QQQ"
+    ],
+    "ABNB": [
+      "QQQ"
+    ],
+    "ORLY": [
+      "QQQ"
+    ],
+    "AZN": [
+      "QQQ",
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CRWD": [
+      "QQQ"
+    ],
+    "IDXX": [
+      "QQQ"
+    ],
+    "ODFL": [
+      "QQQ"
+    ],
+    "FAST": [
+      "QQQ"
+    ],
+    "ROST": [
+      "QQQ"
+    ],
+    "CPRT": [
+      "QQQ"
+    ],
+    "GEHC": [
+      "QQQ"
+    ],
+    "KHC": [
+      "QQQ"
+    ],
+    "EXC": [
+      "QQQ"
+    ],
+    "DXCM": [
+      "QQQ"
+    ],
+    "XEL": [
+      "QQQ"
+    ],
+    "MRNA": [
+      "QQQ"
+    ],
+    "ON": [
+      "QQQ"
+    ],
+    "CDW": [
+      "QQQ"
+    ],
+    "DLTR": [
+      "QQQ"
+    ],
+    "CEG": [
+      "QQQ"
+    ],
+    "FANG": [
+      "QQQ"
+    ],
+    "ZS": [
+      "QQQ",
+      "IWM"
+    ],
+    "ANSS": [
+      "QQQ"
+    ],
+    "TEAM": [
+      "QQQ"
+    ],
+    "VRSK": [
+      "QQQ"
+    ],
+    "ROP": [
+      "QQQ"
+    ],
+    "EA": [
+      "QQQ"
+    ],
+    "WDAY": [
+      "QQQ"
+    ],
+    "BIIB": [
+      "QQQ"
+    ],
+    "CHTR": [
+      "QQQ"
+    ],
+    "PAYX": [
+      "QQQ"
+    ],
+    "ALGN": [
+      "QQQ"
+    ],
+    "CTSH": [
+      "QQQ"
+    ],
+    "ENPH": [
+      "QQQ",
+      "IWM"
+    ],
+    "NXPI": [
+      "QQQ"
+    ],
+    "ASML": [
+      "QQQ",
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "LULU": [
+      "QQQ"
+    ],
+    "EBAY": [
+      "QQQ"
+    ],
+    "MNST": [
+      "QQQ"
+    ],
+    "TTD": [
+      "QQQ",
+      "IWM"
+    ],
+    "DDOG": [
+      "QQQ",
+      "IWM"
+    ],
+    "NET": [
+      "QQQ",
+      "IWM"
+    ],
+    "SNOW": [
+      "QQQ",
+      "IWM"
+    ],
+    "PLTR": [
+      "QQQ",
+      "IWM"
+    ],
+    "ARM": [
+      "QQQ"
+    ],
+    "APP": [
+      "QQQ",
+      "IWM"
+    ],
+    "COIN": [
+      "QQQ"
+    ],
+    "SMCI": [
+      "QQQ"
+    ],
+    "PDD": [
+      "QQQ",
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SIRI": [
+      "QQQ"
+    ],
+    "ILMN": [
+      "QQQ"
+    ],
+    "TTWO": [
+      "QQQ"
+    ],
+    "GFS": [
+      "QQQ"
+    ],
+    "GEN": [
+      "QQQ"
+    ],
+    "QRVO": [
+      "QQQ"
+    ],
+    "MCHP": [
+      "QQQ"
+    ],
+    "WBD": [
+      "QQQ"
+    ],
+    "RIVN": [
+      "QQQ",
+      "IWM"
+    ],
+    "QQQ": [
+      "QQQ"
+    ],
+    "VTI": [
+      "VTI"
+    ],
+    "DECK": [
+      "IWM"
+    ],
+    "AXON": [
+      "IWM"
+    ],
+    "VEEV": [
+      "IWM"
+    ],
+    "HUBS": [
+      "IWM"
+    ],
+    "SFM": [
+      "IWM"
+    ],
+    "FND": [
+      "IWM"
+    ],
+    "CAVA": [
+      "IWM"
+    ],
+    "ELF": [
+      "IWM"
+    ],
+    "SAIA": [
+      "IWM"
+    ],
+    "CELH": [
+      "IWM"
+    ],
+    "BURL": [
+      "IWM"
+    ],
+    "FIVE": [
+      "IWM"
+    ],
+    "CHWY": [
+      "IWM"
+    ],
+    "YETI": [
+      "IWM"
+    ],
+    "SAIC": [
+      "IWM"
+    ],
+    "CACI": [
+      "IWM"
+    ],
+    "LHX": [
+      "IWM"
+    ],
+    "TDY": [
+      "IWM"
+    ],
+    "AMETEK": [
+      "IWM"
+    ],
+    "NVT": [
+      "IWM"
+    ],
+    "FTV": [
+      "IWM"
+    ],
+    "PAYC": [
+      "IWM"
+    ],
+    "PCTY": [
+      "IWM"
+    ],
+    "GNRC": [
+      "IWM"
+    ],
+    "WSM": [
+      "IWM"
+    ],
+    "WING": [
+      "IWM"
+    ],
+    "SHAK": [
+      "IWM"
+    ],
+    "CMG": [
+      "IWM"
+    ],
+    "DT": [
+      "IWM"
+    ],
+    "BILL": [
+      "IWM"
+    ],
+    "ESTC": [
+      "IWM"
+    ],
+    "MQ": [
+      "IWM"
+    ],
+    "HOOD": [
+      "IWM"
+    ],
+    "SOFI": [
+      "IWM"
+    ],
+    "RUN": [
+      "IWM"
+    ],
+    "SEDG": [
+      "IWM"
+    ],
+    "FSLR": [
+      "IWM"
+    ],
+    "BOOT": [
+      "IWM"
+    ],
+    "HIMS": [
+      "IWM"
+    ],
+    "DKNG": [
+      "IWM"
+    ],
+    "CROX": [
+      "IWM"
+    ],
+    "ONON": [
+      "IWM"
+    ],
+    "CART": [
+      "IWM"
+    ],
+    "GTLB": [
+      "IWM"
+    ],
+    "MNDY": [
+      "IWM"
+    ],
+    "CFLT": [
+      "IWM"
+    ],
+    "MGM": [
+      "IWM"
+    ],
+    "WYNN": [
+      "IWM"
+    ],
+    "CZR": [
+      "IWM"
+    ],
+    "RCL": [
+      "IWM"
+    ],
+    "CCL": [
+      "IWM"
+    ],
+    "NCLH": [
+      "IWM"
+    ],
+    "HLT": [
+      "IWM"
+    ],
+    "MAR": [
+      "IWM"
+    ],
+    "CHH": [
+      "IWM"
+    ],
+    "BWXT": [
+      "IWM"
+    ],
+    "CW": [
+      "IWM"
+    ],
+    "MGA": [
+      "IWM"
+    ],
+    "APTV": [
+      "IWM"
+    ],
+    "LKQ": [
+      "IWM"
+    ],
+    "BC": [
+      "IWM"
+    ],
+    "LEN": [
+      "IWM"
+    ],
+    "DHI": [
+      "IWM"
+    ],
+    "NVR": [
+      "IWM"
+    ],
+    "PHM": [
+      "IWM"
+    ],
+    "TOL": [
+      "IWM"
+    ],
+    "TMHC": [
+      "IWM"
+    ],
+    "MDC": [
+      "IWM"
+    ],
+    "LGIH": [
+      "IWM"
+    ],
+    "SKY": [
+      "IWM"
+    ],
+    "CVCO": [
+      "IWM"
+    ],
+    "SPSC": [
+      "IWM"
+    ],
+    "IOSP": [
+      "IWM"
+    ],
+    "MYRG": [
+      "IWM"
+    ],
+    "PRFT": [
+      "IWM"
+    ],
+    "OMCL": [
+      "IWM"
+    ],
+    "CRVL": [
+      "IWM"
+    ],
+    "TNET": [
+      "IWM"
+    ],
+    "MGRC": [
+      "IWM"
+    ],
+    "AAON": [
+      "IWM"
+    ],
+    "EXPO": [
+      "IWM"
+    ],
+    "CSWI": [
+      "IWM"
+    ],
+    "EPRT": [
+      "IWM"
+    ],
+    "GRBK": [
+      "IWM"
+    ],
+    "CTRE": [
+      "IWM"
+    ],
+    "FCNCA": [
+      "IWM"
+    ],
+    "MGEE": [
+      "IWM"
+    ],
+    "PLXS": [
+      "IWM"
+    ],
+    "DORM": [
+      "IWM"
+    ],
+    "WRLD": [
+      "IWM"
+    ],
+    "GFF": [
+      "IWM"
+    ],
+    "IWM": [
+      "IWM"
+    ],
+    "TSM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NVO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SNY": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SAP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NVS": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BABA": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SONY": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "HMC": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "UL": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BTI": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TCOM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SE": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "JD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BIDU": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NTES": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TME": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NU": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "KB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SHG": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SKM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "INFY": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "WIT": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "RIO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BHP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NEM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "FCX": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "GOLD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SCCO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "DEO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BUD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "STZ": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SHOP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CNR": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "RY": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BMO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BNS": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "ENB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TRP": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SU": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CNQ": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CVE": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "IMO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "VALE": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "PBR": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "ITUB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BBD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "ABEV": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SID": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "GGB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "CIB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BSBR": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "IQ": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "VIPS": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "FUTU": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "QFIN": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "LU": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "YMM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "XPEV": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NIO": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "LI": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "LSPD": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "DSGX": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "MG": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "RCI": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "BCE": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "OTEX": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "GSK": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "SHEL": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TTE": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "E": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "ERIC": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "NOK": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "ORAN": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "TEF": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "PHG": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "STM": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "IBN": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "HDB": [
+      "VXUS",
+      "VEA",
+      "IEMG"
+    ],
+    "VXUS": [
+      "VXUS"
+    ],
+    "VEA": [
+      "VEA"
+    ],
+    "IEMG": [
+      "IEMG"
+    ],
+    "VRTPX": [
+      "VNQ"
+    ],
+    "WELL": [
+      "VNQ"
+    ],
+    "PLD": [
+      "VNQ"
+    ],
+    "EQIX": [
+      "VNQ"
+    ],
+    "AMT": [
+      "VNQ"
+    ],
+    "DLR": [
+      "VNQ"
+    ],
+    "SPG": [
+      "VNQ"
+    ],
+    "O": [
+      "VNQ"
+    ],
+    "PSA": [
+      "VNQ"
+    ],
+    "CBRE": [
+      "VNQ"
+    ],
+    "VNQ": [
+      "VNQ"
+    ]
+  },
+  "source_etfs": [
+    "SPY",
+    "QQQ",
+    "VTI",
+    "IWM",
+    "VXUS",
+    "VEA",
+    "IEMG",
+    "VNQ"
+  ],
+  "resolved_at": "2026-04-19T15:13:14.521371+00:00"
+}

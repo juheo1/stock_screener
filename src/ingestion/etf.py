@@ -157,6 +157,20 @@ _load_registry()
 # Used for stock-mode display on the ETF screener page.
 # ---------------------------------------------------------------------------
 
+# Mapping from well-known US ETF tickers to their INDEX_CONSTITUENTS key.
+# Checked before yfinance so the scanner gets full 100-ticker lists rather
+# than the ~10 rows returned by top_holdings.
+_US_ETF_INDEX_MAP: dict[str, str] = {
+    "SPY":  "us_large",   # S&P 500
+    "QQQ":  "us_growth",  # Nasdaq-100
+    "VTI":  "us_total",   # Total US Market
+    "IWM":  "us_small",   # Russell 2000 (representative small-cap list)
+    "VXUS": "intl",       # International ex-US
+    "VEA":  "intl",       # Developed Markets
+    "IEMG": "intl",       # Emerging Markets
+    # VNQ (REITs) has no hardcoded list → falls through to yfinance
+}
+
 # Mapping from well-known Korean ETF tickers to their benchmark index key.
 # Used as a fallback when pykrx is unavailable or incompatible.
 _KOREAN_ETF_INDEX_MAP: dict[str, str] = {
@@ -291,6 +305,17 @@ def fetch_etf_holdings(ticker: str, max_n: int = 100) -> list[str]:
 
     syms: list[str] = []
     seen: set[str] = set()
+
+    # --- Path 0: Known US ETF index mapping (hardcoded, always available) ---
+    # top_holdings only returns ~10 rows; use the full 100-ticker lists instead.
+    if not is_korean:
+        index_key = _US_ETF_INDEX_MAP.get(sym)
+        if index_key and index_key in INDEX_CONSTITUENTS:
+            constituents = INDEX_CONSTITUENTS[index_key]
+            result = list(dict.fromkeys(constituents))[:max_n]
+            _HOLDINGS_CACHE[sym] = result
+            _HOLDINGS_CACHE_TS[sym] = now
+            return result
 
     # --- Path 1: Known Korean ETF index mapping (hardcoded, always available) ---
     if is_korean:

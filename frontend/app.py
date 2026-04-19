@@ -51,19 +51,20 @@ server = app.server  # Expose Flask server for WSGI deployment if needed
 # ---------------------------------------------------------------------------
 
 NAV_ITEMS = [
-    {"label": "Intelligence Hub", "href": "/",            "icon": "bi-speedometer2"},
-    {"label": "Stock Screener",   "href": "/screener",    "icon": "bi-funnel"},
-    {"label": "Screener ROK",     "href": "/screener-rok","icon": "bi-globe-asia-australia"},
-    {"label": "ETF Screener",     "href": "/etf",         "icon": "bi-collection"},
-    {"label": "Technical Chart",  "href": "/technical",  "icon": "bi-bar-chart-line-fill"},
-    {"label": "Zombie Kill List", "href": "/zombies",    "icon": "bi-radioactive"},
-    {"label": "Batch Compare",    "href": "/compare",    "icon": "bi-bar-chart-steps"},
-    {"label": "Retirement",       "href": "/retirement", "icon": "bi-graph-up-arrow"},
-    {"label": "Metals Intel",     "href": "/metals",     "icon": "bi-gem"},
-    {"label": "Macro Monitor",    "href": "/macro",      "icon": "bi-activity"},
-    {"label": "Fed Liquidity",    "href": "/liquidity",  "icon": "bi-bank"},
-    {"label": "News & Sentiment", "href": "/sentiment",  "icon": "bi-newspaper"},
-    {"label": "Econ Calendar",    "href": "/calendar",   "icon": "bi-calendar-event"},
+    {"label": "Intelligence Hub",    "href": "/",            "icon": "bi-speedometer2"},
+    {"label": "Stock Screener",      "href": "/screener",    "icon": "bi-funnel"},
+    {"label": "Screener ROK",        "href": "/screener-rok","icon": "bi-globe-asia-australia"},
+    {"label": "ETF Screener",        "href": "/etf",         "icon": "bi-collection"},
+    {"label": "Technical Chart",     "href": "/technical",  "icon": "bi-bar-chart-line-fill"},
+    {"label": "Strategy Scanner",    "href": "/scanner",    "icon": "bi-radar"},
+    {"label": "Zombie Kill List",    "href": "/zombies",    "icon": "bi-radioactive"},
+    {"label": "Batch Compare",       "href": "/compare",    "icon": "bi-bar-chart-steps"},
+    {"label": "Retirement",          "href": "/retirement", "icon": "bi-graph-up-arrow"},
+    {"label": "Metals Intel",        "href": "/metals",     "icon": "bi-gem"},
+    {"label": "Macro Monitor",       "href": "/macro",      "icon": "bi-activity"},
+    {"label": "Fed Liquidity",       "href": "/liquidity",  "icon": "bi-bank"},
+    {"label": "News & Sentiment",    "href": "/sentiment",  "icon": "bi-newspaper"},
+    {"label": "Econ Calendar",       "href": "/calendar",   "icon": "bi-calendar-event"},
 ]
 
 
