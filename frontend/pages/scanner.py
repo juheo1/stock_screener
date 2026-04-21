@@ -337,6 +337,18 @@ def layout() -> html.Div:
                                      style={**_card_style, "marginBottom": "8px"}),
                             html.Div(id="scanner-drilldown-backtest-card",
                                      style=_card_style),
+                            # Track button + feedback
+                            html.Div(style={"marginTop": "8px"}, children=[
+                                dbc.Button(
+                                    "Track This Signal",
+                                    id="scanner-track-btn",
+                                    color="success",
+                                    size="sm",
+                                    style={"width": "100%"},
+                                ),
+                                html.Div(id="scanner-track-feedback",
+                                         style={"marginTop": "6px", "fontSize": "0.82rem"}),
+                            ]),
                         ], md=4),
                     ]),
                 ],
@@ -441,6 +453,8 @@ def _fmt_signals(signals: list[dict]) -> list[dict]:
             "close_price":          s.get("close_price"),
             "days_ago":             s.get("days_ago", 0),
             "source_etfs_str":      ", ".join(s.get("source_etfs", [])),
+            "source_etfs":          s.get("source_etfs", []),
+            "scan_signal_id":       s.get("scan_signal_id"),
         })
     return rows
 
@@ -695,6 +709,12 @@ def execute_forced_scan(submit_n_clicks, selected_strategies):
 def capture_selected_row(tb, ts, pb, ps):
     """Store the selected row from whichever table fired the callback."""
     triggered = dash.ctx.triggered_id
+    category_map = {
+        "scanner-grid-latest-buy":  "latest-buy",
+        "scanner-grid-latest-sell": "latest-sell",
+        "scanner-grid-past-buy":    "past-buy",
+        "scanner-grid-past-sell":   "past-sell",
+    }
     grid_map = {
         "scanner-grid-latest-buy":  tb,
         "scanner-grid-latest-sell": ts,
@@ -703,7 +723,9 @@ def capture_selected_row(tb, ts, pb, ps):
     }
     rows = grid_map.get(triggered)
     if rows:
-        return rows[0]
+        row = dict(rows[0])
+        row["signal_category"] = category_map.get(triggered, "manual")
+        return row
     return no_update
 
 
@@ -712,26 +734,29 @@ def capture_selected_row(tb, ts, pb, ps):
     Output("scanner-drilldown-chart",         "figure"),
     Output("scanner-drilldown-signal-card",   "children"),
     Output("scanner-drilldown-backtest-card", "children"),
+    Output("scanner-track-btn",               "children"),
+    Output("scanner-track-btn",               "disabled"),
+    Output("scanner-track-feedback",          "children"),
     Input("scanner-selected-row-store", "data"),
     prevent_initial_call=True,
 )
 def render_drilldown(row):
     """Render chart + signal info + backtest card for the selected row."""
     if not row:
-        return {"display": "none"}, go.Figure(), [], []
+        return {"display": "none"}, go.Figure(), [], [], "Track This Signal", False, ""
 
     ticker   = row.get("ticker", "")
     strategy = row.get("strategy", "")
     strategy_name = row.get("strategy_display_name", strategy)
 
     if not ticker or not strategy:
-        return {"display": "none"}, go.Figure(), [], []
+        return {"display": "none"}, go.Figure(), [], [], "Track This Signal", False, ""
 
     # ── Fetch OHLCV ─────────────────────────────────────────────────
     df = fetch_ohlcv(ticker, "1D")
     if df is None or df.empty:
         error_fig = _empty_fig(f"Could not fetch data for {ticker}")
-        return {"display": "block"}, error_fig, _error_card("No data"), []
+        return {"display": "block"}, error_fig, _error_card("No data"), [], "Track This Signal", False, ""
 
     # ── Load strategy + resolve chart bundle ─────────────────────────
     computed_inds = []
@@ -876,7 +901,97 @@ def render_drilldown(row):
                      style={"color": _MUTED, "fontSize": "0.82rem"}),
         ]
 
-    return {"display": "block"}, fig, signal_card, backtest_card
+    # ── Check if signal already tracked ─────────────────────────────
+    from frontend.api_client import trades_check
+    scan_signal_id = row.get("scan_signal_id")
+    if scan_signal_id:
+        check = trades_check(scan_signal_id)
+        if check and check.get("tracked"):
+            track_label   = "Already Tracked"
+            track_disabled = True
+            track_feedback = html.Span(
+                f"Tracked (id={check.get('trade_id')})",
+                style={"color": "#4a9eff", "fontSize": "0.78rem"},
+            )
+        else:
+            track_label    = "Track This Signal"
+            track_disabled = False
+            track_feedback = ""
+    else:
+        track_label    = "Track This Signal"
+        track_disabled = False
+        track_feedback = ""
+
+    return {"display": "block"}, fig, signal_card, backtest_card, track_label, track_disabled, track_feedback
+
+
+# ── Track signal callback ─────────────────────────────────────────────────
+
+@callback(
+    Output("scanner-track-feedback", "children", allow_duplicate=True),
+    Output("scanner-track-btn",      "children",  allow_duplicate=True),
+    Output("scanner-track-btn",      "disabled",  allow_duplicate=True),
+    Input("scanner-track-btn",  "n_clicks"),
+    State("scanner-selected-row-store", "data"),
+    State("scanner-results-store",      "data"),
+    prevent_initial_call=True,
+)
+def track_signal(n_clicks, row, results):
+    """POST tracked trade to API when user clicks 'Track This Signal'."""
+    if not n_clicks or not row:
+        return no_update, no_update, no_update
+
+    from frontend.api_client import trades_create, scanner_get_backtest
+
+    ticker   = row.get("ticker", "")
+    strategy = row.get("strategy", "")
+
+    if not ticker or not strategy:
+        return html.Span("No signal selected.", style={"color": "#ff4444"}), no_update, no_update
+
+    # Get scan metadata from results store
+    scan_date = (results or {}).get("scan_date", date.today().isoformat())
+    job_id    = (results or {}).get("job_id")
+
+    # Fetch backtest data for snapshot
+    bt = scanner_get_backtest(ticker, strategy)
+    bt_win_rate    = bt.get("win_rate")    if bt else None
+    bt_trade_count = bt.get("trade_count") if bt else None
+    bt_total_pnl   = bt.get("total_pnl")  if bt else None
+    bt_avg_pnl     = bt.get("avg_pnl")    if bt else None
+
+    payload = {
+        "ticker":                ticker,
+        "signal_side":           row.get("signal_type", 1),
+        "strategy_slug":         strategy,
+        "strategy_display_name": row.get("strategy_display_name", strategy),
+        "signal_date":           row.get("signal_date", scan_date),
+        "scan_date":             scan_date,
+        "signal_category":       row.get("signal_category", "manual"),
+        "source_etfs":           row.get("source_etfs", []),
+        "days_ago":              row.get("days_ago", 0),
+        "scan_signal_id":        row.get("scan_signal_id"),
+        "scan_job_id":           job_id,
+        "close_price":           row.get("close_price"),
+        "bt_win_rate":           bt_win_rate,
+        "bt_trade_count":        bt_trade_count,
+        "bt_total_pnl":          bt_total_pnl,
+        "bt_avg_pnl":            bt_avg_pnl,
+    }
+
+    result = trades_create(payload)
+    if result is None:
+        return (
+            html.Span("Track failed — check API.", style={"color": "#ff4444"}),
+            "Track This Signal", False,
+        )
+
+    side = "BUY" if row.get("signal_type", 1) == 1 else "SELL"
+    feedback = html.Span(
+        f"{ticker} {side} tracked (id={result.get('id')})",
+        style={"color": "#00c896"},
+    )
+    return feedback, "Already Tracked", True
 
 
 # ---------------------------------------------------------------------------

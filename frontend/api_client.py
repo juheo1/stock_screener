@@ -657,3 +657,61 @@ def scanner_get_backtest(
 def scanner_get_universe() -> dict | None:
     """Return the current universe snapshot (cached or freshly resolved)."""
     return _get("/api/scanner/universe")
+
+
+# ---------------------------------------------------------------------------
+# Trade Tracker
+# ---------------------------------------------------------------------------
+
+def trades_list(
+    status: str | None = None,
+    ticker: str | None = None,
+    strategy: str | None = None,
+) -> dict | None:
+    """Return list of tracked trades."""
+    params = {k: v for k, v in {
+        "status": status,
+        "ticker": ticker,
+        "strategy": strategy,
+    }.items() if v is not None}
+    return _get("/api/trades/", params=params)
+
+
+def trades_create(payload: dict) -> dict | None:
+    """Create a new tracked trade."""
+    return _post("/api/trades/", payload)
+
+
+def trades_update(trade_id: int, payload: dict) -> dict | None:
+    """Update editable fields on a trade via PATCH."""
+    url = f"{API_BASE_URL}/api/trades/{trade_id}"
+    try:
+        resp = requests.patch(url, json=payload, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        logger.error("PATCH /api/trades/%s failed: %s", trade_id, exc)
+        return None
+
+
+def trades_delete(trade_id: int) -> bool:
+    """Delete a trade. Returns True on success."""
+    url = f"{API_BASE_URL}/api/trades/{trade_id}"
+    try:
+        resp = requests.delete(url, timeout=_TIMEOUT)
+        resp.raise_for_status()
+        return True
+    except Exception as exc:
+        logger.error("DELETE /api/trades/%s failed: %s", trade_id, exc)
+        return False
+
+
+def trades_check(scan_signal_id: int) -> dict | None:
+    """Check whether a scanner signal is already tracked."""
+    return _get("/api/trades/check", params={"scan_signal_id": scan_signal_id})
+
+
+def trades_import(rows: list[dict]) -> dict | None:
+    """Bulk-import trade rows."""
+    return _post("/api/trades/import", rows)
+

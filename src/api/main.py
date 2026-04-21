@@ -103,6 +103,7 @@ def create_app() -> FastAPI:
         scanner,
         screener,
         sentiment,
+        trades,
         zombies,
     )
 
@@ -121,6 +122,7 @@ def create_app() -> FastAPI:
     app.include_router(geopolitical.router)
     app.include_router(calendar.router)
     app.include_router(scanner.router)
+    app.include_router(trades.router)
     app.include_router(admin.router)
 
     @app.get("/", tags=["health"])

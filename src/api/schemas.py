@@ -514,6 +514,7 @@ class ScanSignalItem(BaseModel):
     close_price: float | None
     days_ago: int
     source_etfs: list[str]
+    scan_signal_id: int | None = None   # scan_signals.id for trade tracking
 
 
 class ScanResultsResponse(BaseModel):
@@ -549,3 +550,122 @@ class ScanUniverseResponse(BaseModel):
     ticker_count: int
     resolved_at: str
     tickers: list[str]
+
+
+# ---------------------------------------------------------------------------
+# Trade Tracker schemas
+# ---------------------------------------------------------------------------
+
+class TradeCreateRequest(BaseModel):
+    """Payload for POST /api/trades/."""
+    # Required signal snapshot
+    ticker: str
+    signal_side: int            # 1=BUY, -1=SELL
+    strategy_slug: str
+    signal_date: str            # ISO date
+    scan_date: str              # ISO date
+    # Optional signal snapshot
+    signal_category: str = "manual"
+    strategy_display_name: str | None = None
+    source_etfs: list[str] = []
+    days_ago: int = 0
+    scan_signal_id: int | None = None
+    scan_job_id: int | None = None
+    # Market snapshot
+    close_price: float | None = None
+    open_price: float | None = None
+    high_price: float | None = None
+    low_price: float | None = None
+    # Backtest snapshot
+    bt_win_rate: float | None = None
+    bt_trade_count: int | None = None
+    bt_total_pnl: float | None = None
+    bt_avg_pnl: float | None = None
+    strategy_params: dict = {}
+    # Execution
+    execution_status: str = "TRACKED"
+    planned_action: str | None = None
+    notes: str = ""
+    tags: str = ""
+
+
+class TradeUpdateRequest(BaseModel):
+    """Payload for PATCH /api/trades/{id} — editable fields only."""
+    execution_status: str | None = None
+    planned_action: str | None = None
+    actual_entry_date: str | None = None
+    actual_entry_price: float | None = None
+    actual_exit_date: str | None = None
+    actual_exit_price: float | None = None
+    quantity: float | None = None
+    notes: str | None = None
+    tags: str | None = None
+
+
+class TrackedTradeItem(BaseModel):
+    """A single tracked trade row returned by the API."""
+    id: int
+    user_id: str
+    # Signal snapshot
+    ticker: str
+    signal_side: int
+    strategy_slug: str
+    strategy_display_name: str | None
+    signal_date: str
+    scan_date: str
+    signal_category: str
+    source_etfs: list[str]
+    days_ago: int
+    scan_signal_id: int | None
+    scan_job_id: int | None
+    # Market snapshot
+    close_price: float | None
+    open_price: float | None
+    high_price: float | None
+    low_price: float | None
+    # Backtest snapshot
+    bt_win_rate: float | None
+    bt_trade_count: int | None
+    bt_total_pnl: float | None
+    bt_avg_pnl: float | None
+    # User execution
+    execution_status: str
+    planned_action: str | None
+    actual_entry_date: str | None
+    actual_entry_price: float | None
+    actual_exit_date: str | None
+    actual_exit_price: float | None
+    quantity: float | None
+    notes: str | None
+    tags: str | None
+    # Derived analytics
+    slippage: float | None
+    slippage_pct: float | None
+    gap_pct: float | None
+    holding_period_days: int | None
+    realized_pnl: float | None
+    return_pct: float | None
+    win_flag: int | None
+    execution_timing: str | None
+    # Audit
+    created_at: str
+    updated_at: str | None
+
+
+class TrackedTradeListResponse(BaseModel):
+    """Response for GET /api/trades/."""
+    total: int
+    trades: list[TrackedTradeItem]
+
+
+class TradeImportResponse(BaseModel):
+    """Response for POST /api/trades/import."""
+    created: int
+    skipped: int
+    errors: list[str]
+
+
+class TradeCheckResponse(BaseModel):
+    """Response for GET /api/trades/check."""
+    tracked: bool
+    trade_id: int | None = None

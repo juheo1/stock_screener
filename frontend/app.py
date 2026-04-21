@@ -57,6 +57,7 @@ NAV_ITEMS = [
     {"label": "ETF Screener",        "href": "/etf",         "icon": "bi-collection"},
     {"label": "Technical Chart",     "href": "/technical",  "icon": "bi-bar-chart-line-fill"},
     {"label": "Strategy Scanner",    "href": "/scanner",    "icon": "bi-radar"},
+    {"label": "Trade Tracker",       "href": "/trades",     "icon": "bi-journal-check"},
     {"label": "Zombie Kill List",    "href": "/zombies",    "icon": "bi-radioactive"},
     {"label": "Batch Compare",       "href": "/compare",    "icon": "bi-bar-chart-steps"},
     {"label": "Retirement",          "href": "/retirement", "icon": "bi-graph-up-arrow"},

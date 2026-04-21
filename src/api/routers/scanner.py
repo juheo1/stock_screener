@@ -127,6 +127,7 @@ def get_results(
                 close_price=sig.close_price,
                 days_ago=sig.days_ago,
                 source_etfs=json.loads(sig.source_etfs) if sig.source_etfs else [],
+                scan_signal_id=sig.id,
             )
             is_latest = sig.signal_date == latest_trading
             if is_latest and sig.signal_type == 1:
