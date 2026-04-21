@@ -161,5 +161,9 @@ class ScanBacktest(Base):
     trades_json     = Column(Text)           # JSON list of trade dicts
     data_start_date = Column(Date)
     data_end_date   = Column(Date)
-    bar_count       = Column(Integer)
-    created_at      = Column(DateTime, server_default=func.now())
+    bar_count           = Column(Integer)
+    spy_return_pct      = Column(Float)
+    strategy_return_pct = Column(Float)
+    beat_spy            = Column(Integer)   # 0 or 1
+    avg_return_pct      = Column(Float)
+    created_at          = Column(DateTime, server_default=func.now())

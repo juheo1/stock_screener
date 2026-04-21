@@ -332,6 +332,14 @@ def _run_scan_locked(
                     sum(1 for v in ohlcv_map.values() if v is not None),
                     len(universe.tickers))
 
+        # ── Fetch SPY for benchmark comparison ───────────────────────
+        spy_df_bench = None
+        try:
+            from frontend.strategy.data import fetch_ohlcv as _fetch_single
+            spy_df_bench = _fetch_single("SPY", "1D")
+        except Exception as _exc:
+            logger.warning("[Orchestrator] SPY fetch failed (benchmark disabled): %s", _exc)
+
         # ── Signal detection ─────────────────────────────────────────
         from frontend.strategy.engine import run_strategy, compute_performance
         from frontend.strategy.data import get_source, compute_ma, compute_indicator
@@ -388,7 +396,7 @@ def _run_scan_locked(
 
                     # Compute backtest (only for tickers with signals)
                     try:
-                        perf = compute_performance(df, result.signals)
+                        perf = compute_performance(df, result.signals, spy_df=spy_df_bench)
                         dates_idx = df.index
                         backtest_rows.append(ScanBacktest(
                             job_id=job.id,
@@ -404,6 +412,10 @@ def _run_scan_locked(
                             data_start_date=dates_idx[0].date()  if len(dates_idx) else None,
                             data_end_date=dates_idx[-1].date()   if len(dates_idx) else None,
                             bar_count=len(df),
+                            spy_return_pct=perf.get("spy_return_pct"),
+                            strategy_return_pct=perf.get("strategy_return_pct"),
+                            beat_spy=1 if perf.get("beat_spy") else (0 if perf.get("beat_spy") is not None else None),
+                            avg_return_pct=perf.get("avg_return_pct"),
                         ))
                     except Exception as exc:
                         logger.debug("[Orchestrator] Backtest failed for %s/%s: %s",

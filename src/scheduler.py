@@ -121,6 +121,32 @@ def run_daily_scan() -> None:
         logger.error("[Scheduler] Daily scan failed: %s", exc)
 
 
+def refresh_sentiment_news() -> None:
+    """Job: refresh sentiment indicators, news articles, and earthquake data."""
+    from src.database import SessionLocal
+    from src.ingestion.sentiment import fetch_and_store_sentiment
+    from src.ingestion.news import fetch_and_store_news
+    from src.ingestion.disasters import (
+        fetch_usgs_earthquakes,
+        parse_usgs_geojson,
+        store_earthquake_events,
+    )
+
+    logger.info("[Scheduler] Starting sentiment/news refresh at %s", datetime.now())
+    db = SessionLocal()
+    try:
+        fetch_and_store_sentiment(db)
+        fetch_and_store_news(db)
+        geojson = fetch_usgs_earthquakes()
+        events = parse_usgs_geojson(geojson)
+        store_earthquake_events(db, events)
+        logger.info("[Scheduler] Sentiment/news refresh complete.")
+    except Exception as exc:
+        logger.error("[Scheduler] Sentiment/news refresh failed: %s", exc)
+    finally:
+        db.close()
+
+
 def get_scheduler() -> BackgroundScheduler:
     """Return the singleton :class:`BackgroundScheduler` instance.
 
@@ -174,16 +200,31 @@ def start_scheduler() -> None:
         replace_existing=True,
     )
 
+    _sentiment_total = settings.scanner_minute + 30
+    _sentiment_hour  = (settings.scanner_hour + _sentiment_total // 60) % 24
+    _sentiment_min   = _sentiment_total % 60
+    scheduler.add_job(
+        refresh_sentiment_news,
+        trigger=CronTrigger(
+            hour=_sentiment_hour,
+            minute=_sentiment_min,
+        ),
+        id="sentiment_news_refresh",
+        replace_existing=True,
+    )
+
     scheduler.start()
     logger.info(
         "[Scheduler] Started. Equity job at %02d:%02d UTC, macro/metals at %02d:%02d UTC, "
-        "scanner at %02d:%02d UTC.",
+        "scanner at %02d:%02d UTC, sentiment/news at %02d:%02d UTC.",
         settings.scheduler_hour,
         settings.scheduler_minute,
         settings.scheduler_hour,
         settings.scheduler_minute + 15,
         settings.scanner_hour,
         settings.scanner_minute,
+        _sentiment_hour,
+        _sentiment_min,
     )
 
     # Run startup backfill check (non-blocking background thread)

@@ -303,6 +303,10 @@ def get_backtest(
             data_start_date=bt.data_start_date.isoformat() if bt.data_start_date else None,
             data_end_date=bt.data_end_date.isoformat()   if bt.data_end_date   else None,
             bar_count=bt.bar_count,
+            spy_return_pct=bt.spy_return_pct,
+            strategy_return_pct=bt.strategy_return_pct,
+            beat_spy=bt.beat_spy,
+            avg_return_pct=bt.avg_return_pct,
         )
     finally:
         db.close()

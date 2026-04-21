@@ -542,6 +542,10 @@ class ScanBacktestItem(BaseModel):
     data_start_date: str | None
     data_end_date: str | None
     bar_count: int | None
+    spy_return_pct:      float | None = None
+    strategy_return_pct: float | None = None
+    beat_spy:            int | None = None
+    avg_return_pct:      float | None = None
 
 
 class ScanUniverseResponse(BaseModel):

@@ -140,6 +140,10 @@ _NEW_COLUMNS: list[tuple[str, str, str]] = [
     ("metrics_quarterly",   "quality_score",               "REAL"),
     ("metals_series",       "inventory_oz",                "REAL"),
     ("equities",            "description",                 "TEXT"),
+    ("scan_backtests",  "spy_return_pct",       "REAL"),
+    ("scan_backtests",  "strategy_return_pct",  "REAL"),
+    ("scan_backtests",  "beat_spy",             "INTEGER"),
+    ("scan_backtests",  "avg_return_pct",       "REAL"),
 ]
 
 

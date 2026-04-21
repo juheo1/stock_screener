@@ -235,7 +235,11 @@ def run_strategy(
 # Performance computation
 # ---------------------------------------------------------------------------
 
-def compute_performance(df: pd.DataFrame, signals: pd.Series) -> dict:
+def compute_performance(
+    df: pd.DataFrame,
+    signals: pd.Series,
+    spy_df: pd.DataFrame | None = None,
+) -> dict:
     """
     Derive a trade list and summary statistics from a signals Series.
 
@@ -278,6 +282,7 @@ def compute_performance(df: pd.DataFrame, signals: pd.Series) -> dict:
                     "entry_price": round(entry_price, 4),
                     "exit_price":  round(exit_price,  4),
                     "pnl":         round(pnl,          4),
+                    "return_pct":  round(pnl / entry_price * 100, 4) if entry_price else 0.0,
                     "side":        side,
                 })
                 position = 0
@@ -291,27 +296,68 @@ def compute_performance(df: pd.DataFrame, signals: pd.Series) -> dict:
                     "entry_price": round(entry_price, 4),
                     "exit_price":  round(exit_price,  4),
                     "pnl":         round(pnl,          4),
+                    "return_pct":  round(pnl / entry_price * 100, 4) if entry_price else 0.0,
                     "side":        side,
                 })
                 position = 0
 
     if not trades:
         return {
-            "trade_count": 0,
-            "win_rate":    0.0,
-            "total_pnl":   0.0,
-            "avg_pnl":     0.0,
-            "trades":      [],
+            "trade_count":        0,
+            "win_rate":           0.0,
+            "total_pnl":          0.0,
+            "avg_pnl":            0.0,
+            "strategy_return_pct": 0.0,
+            "avg_return_pct":     0.0,
+            "spy_return_pct":     None,
+            "beat_spy":           None,
+            "trades":             [],
         }
 
     wins      = sum(1 for t in trades if t["pnl"] > 0)
     total_pnl = sum(t["pnl"] for t in trades)
+
+    # Compounded % return assuming $1,000 initial capital
+    capital = 1000.0
+    for t in trades:
+        if t["entry_price"]:
+            shares   = capital / t["entry_price"]
+            capital += t["pnl"] * shares
+    strategy_return_pct = round((capital - 1000.0) / 1000.0 * 100, 4)
+
+    avg_return_pct = round(
+        sum(t.get("return_pct", 0.0) for t in trades) / len(trades), 4
+    )
+
+    # SPY buy-and-hold benchmark over the same date range
+    spy_return_pct: float | None = None
+    beat_spy:       bool  | None = None
+    if spy_df is not None and not spy_df.empty:
+        try:
+            start_idx = df.index[0]
+            end_idx   = df.index[-1]
+            spy_slice = spy_df[
+                (spy_df.index >= start_idx) & (spy_df.index <= end_idx)
+            ]
+            if len(spy_slice) >= 2:
+                spy_return_pct = round(
+                    (float(spy_slice["Close"].iloc[-1]) / float(spy_slice["Close"].iloc[0]) - 1) * 100,
+                    4,
+                )
+                beat_spy = strategy_return_pct > spy_return_pct
+        except Exception:
+            pass
+
     return {
-        "trade_count": len(trades),
-        "win_rate":    round(wins / len(trades), 4),
-        "total_pnl":   round(total_pnl, 4),
-        "avg_pnl":     round(total_pnl / len(trades), 4),
-        "trades":      trades,
+        "trade_count":         len(trades),
+        "win_rate":            round(wins / len(trades), 4),
+        "total_pnl":           round(total_pnl, 4),
+        "avg_pnl":             round(total_pnl / len(trades), 4),
+        "strategy_return_pct": strategy_return_pct,
+        "avg_return_pct":      avg_return_pct,
+        "spy_return_pct":      spy_return_pct,
+        "beat_spy":            beat_spy,
+        "trades":              trades,
     }
 
 

@@ -868,6 +868,29 @@ def render_drilldown(row):
         trades  = bt_data.get("trade_count", 0)
         pnl_color = _GREEN if total >= 0 else _RED
 
+        strategy_return = bt_data.get("strategy_return_pct")
+        spy_return      = bt_data.get("spy_return_pct")
+        beat_spy        = bt_data.get("beat_spy")
+        avg_ret_pct     = bt_data.get("avg_return_pct")
+
+        # Build the "vs SPY" row
+        if strategy_return is not None:
+            ret_str  = f"{strategy_return:+.1f}%  (from $1,000 → ${1000*(1+strategy_return/100):.0f})"
+            ret_color = _GREEN if strategy_return >= 0 else _RED
+        else:
+            ret_str  = "N/A"
+            ret_color = _MUTED
+
+        if spy_return is not None and strategy_return is not None:
+            spy_label = (
+                f"{strategy_return:+.1f}% vs {spy_return:+.1f}% — "
+                + ("Beat SPY ✓" if beat_spy else "Underperformed SPY ✗")
+            )
+            spy_color = _GREEN if beat_spy else _RED
+        else:
+            spy_label = "N/A"
+            spy_color = _MUTED
+
         backtest_card = [
             html.Div("BACKTEST SUMMARY", style=_section_hdr),
             html.Div([
@@ -879,12 +902,23 @@ def render_drilldown(row):
                 html.Span(win_pct, style={"color": _TEXT, "fontWeight": 600}),
             ], style={"marginBottom": "4px"}),
             html.Div([
-                html.Span("Total P&L: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
+                html.Span("Return: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
+                html.Span(ret_str, style={"color": ret_color, "fontWeight": 700}),
+            ], style={"marginBottom": "4px"}),
+            html.Div([
+                html.Span("vs SPY: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
+                html.Span(spy_label, style={"color": spy_color}),
+            ], style={"marginBottom": "4px"}),
+            html.Div([
+                html.Span("Total P&L (price pts): ", style={"color": _MUTED, "fontSize": "0.80rem"}),
                 html.Span(f"{total:+.2f}", style={"color": pnl_color, "fontWeight": 700}),
             ], style={"marginBottom": "4px"}),
             html.Div([
-                html.Span("Avg P&L: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(f"{avg:+.2f}", style={"color": pnl_color}),
+                html.Span("Avg/Trade: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
+                html.Span(
+                    f"{avg:+.2f} (price pts)" + (f" | {avg_ret_pct:+.1f}%" if avg_ret_pct is not None else ""),
+                    style={"color": pnl_color},
+                ),
             ], style={"marginBottom": "4px"}),
             html.Div([
                 html.Span("Period: ", style={"color": _MUTED, "fontSize": "0.80rem"}),

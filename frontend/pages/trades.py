@@ -80,6 +80,8 @@ _SIGNAL_COLS = [
      "cellRenderer": "agAnimateShowChangeCellRenderer"},
     {"field": "strategy_display_name","headerName": "Strategy",    "width": 160, "filter": True},
     {"field": "signal_date",          "headerName": "Signal Date", "width": 110},
+    {"field": "sell_signal_active",   "headerName": "Sell Signal?","width": 110},
+    {"field": "latest_signal_date",   "headerName": "Sig Check Date","width": 115},
     {"field": "close_price",          "headerName": "Signal Close","width": 100,
      "valueFormatter": {"function": "params.value != null ? '$' + params.value.toFixed(2) : '—'"}},
     {"field": "bt_win_rate_pct",      "headerName": "Win %",       "width": 80,
@@ -143,6 +145,9 @@ def layout() -> html.Div:
             # Stores
             dcc.Store(id="trades-data-store"),
             dcc.Store(id="trades-view-filter", data="all"),
+            dcc.Store(id="trades-delete-mode", data=False),
+            dcc.Store(id="trades-undo-stack", data=[]),
+            dcc.Store(id="trades-pending-delete-ids", data=[]),
 
             # Header
             html.H4("Trade Tracker", style={"color": "#ffffff", "fontWeight": 700,
@@ -177,7 +182,16 @@ def layout() -> html.Div:
                         dbc.Button("Import CSV",   id="trades-import-toggle", color="secondary",
                                    size="sm", outline=True, style={"marginRight": "6px"}),
                         dbc.Button("⟳ Refresh",    id="trades-refresh-btn", color="secondary",
-                                   size="sm", outline=True),
+                                   size="sm", outline=True, style={"marginRight": "6px"}),
+                        dbc.Button(
+                            "Delete Mode", id="trades-delete-mode-btn",
+                            color="danger", size="sm", outline=True,
+                            style={"marginRight": "6px"},
+                        ),
+                        dbc.Button(
+                            "Check Signals", id="trades-check-signals-btn",
+                            color="warning", size="sm", outline=True,
+                        ),
                     ], width="auto", style={"marginLeft": "auto"}),
                 ], align="center"),
             ]),
@@ -237,11 +251,53 @@ def layout() -> html.Div:
                         "singleClickEdit": False,
                         "stopEditingWhenCellsLoseFocus": True,
                         "animateRows": True,
+                        "suppressRowClickSelection": False,
                     },
                     style={"height": "600px"},
                     className="ag-theme-alpine-dark",
                 ),
             ]),
+
+            # Floating delete action bar
+            html.Div(
+                id="trades-delete-bar",
+                style={
+                    "display": "none",
+                    "position": "fixed", "bottom": "20px", "left": "50%",
+                    "transform": "translateX(-50%)", "zIndex": 1000,
+                    "backgroundColor": "#1e1e1e", "border": f"1px solid {_RED}",
+                    "borderRadius": "8px", "padding": "12px 24px",
+                    "boxShadow": "0 4px 20px rgba(0,0,0,0.6)",
+                },
+                children=[
+                    html.Span(id="trades-delete-count-text",
+                              style={"color": _TEXT, "fontSize": "0.9rem"}),
+                    dbc.Button("Confirm Delete", id="trades-confirm-delete-btn",
+                               color="danger", size="sm"),
+                    dbc.Button("Cancel", id="trades-cancel-delete-btn",
+                               color="secondary", size="sm", outline=True),
+                ],
+            ),
+
+            # Undo toast
+            dbc.Toast(
+                id="trades-undo-toast",
+                header="Trades Deleted",
+                is_open=False,
+                dismissable=True,
+                duration=10000,
+                style={"position": "fixed", "bottom": "20px", "right": "20px",
+                       "zIndex": 999, "minWidth": "280px",
+                       "backgroundColor": "#1e1e1e", "border": f"1px solid {_BORDER}"},
+                children=[
+                    html.Div([
+                        html.Span(id="trades-undo-toast-msg",
+                                  style={"color": _TEXT, "marginRight": "12px"}),
+                        dbc.Button("Undo", id="trades-undo-btn",
+                                   color="warning", size="sm", outline=True),
+                    ], style={"display": "flex", "alignItems": "center"}),
+                ],
+            ),
 
             # Add Trade modal
             dbc.Modal(
@@ -302,12 +358,22 @@ def layout() -> html.Div:
                 ],
             ),
 
-            # Delete confirmation
-            dcc.ConfirmDialog(
-                id="trades-delete-confirm",
-                message="Delete this trade? This cannot be undone.",
+            # Delete confirm modal
+            dbc.Modal(
+                id="trades-delete-confirm-modal",
+                is_open=False,
+                children=[
+                    dbc.ModalHeader(dbc.ModalTitle("Confirm Delete")),
+                    dbc.ModalBody(html.Div(id="trades-delete-modal-body")),
+                    dbc.ModalFooter([
+                        dbc.Button("Cancel", id="trades-delete-modal-cancel",
+                                   color="secondary", size="sm",
+                                   style={"marginRight": "6px"}),
+                        dbc.Button("Delete", id="trades-delete-modal-confirm",
+                                   color="danger", size="sm"),
+                    ]),
+                ],
             ),
-            dcc.Store(id="trades-delete-id-store"),
         ],
     )
 
@@ -335,6 +401,8 @@ def _enrich_row(row: dict) -> dict:
     else:
         row["win_flag_str"] = "—"
 
+    row.setdefault("sell_signal_active", "—")
+    row.setdefault("latest_signal_date", "")
     return row
 
 
@@ -580,3 +648,289 @@ def submit_add_trade(n, ticker, side, strategy, signal_date, scan_date,
         refreshed_rows,
         "", "", "", "", "",
     )
+
+
+# ---------------------------------------------------------------------------
+# Callback: toggle delete mode
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-delete-mode", "data"),
+    Output("trades-delete-mode-btn", "outline"),
+    Output("trades-delete-mode-btn", "color"),
+    Input("trades-delete-mode-btn", "n_clicks"),
+    Input("trades-cancel-delete-btn", "n_clicks"),
+    State("trades-delete-mode", "data"),
+    prevent_initial_call=True,
+)
+def toggle_delete_mode(_toggle, _cancel, is_active):
+    tid = dash.ctx.triggered_id
+    if tid == "trades-cancel-delete-btn":
+        return False, True, "danger"
+    new_active = not is_active
+    return new_active, not new_active, "danger"
+
+
+@callback(
+    Output("trades-grid", "dashGridOptions"),
+    Output("trades-grid", "columnDefs"),
+    Input("trades-delete-mode", "data"),
+)
+def update_grid_for_delete_mode(is_active):
+    options = {
+        "rowSelection": "multiple" if is_active else "single",
+        "undoRedoCellEditing": True,
+        "singleClickEdit": False,
+        "stopEditingWhenCellsLoseFocus": True,
+        "animateRows": True,
+        "suppressRowClickSelection": False,
+    }
+    if is_active:
+        checkbox_col = {
+            "field": "_select", "headerName": "", "width": 50,
+            "pinned": "left", "checkboxSelection": True,
+            "headerCheckboxSelection": True, "suppressMenu": True,
+            "sortable": False, "filter": False, "resizable": False,
+        }
+        cols = [checkbox_col] + ALL_COLS
+    else:
+        cols = ALL_COLS
+    return options, cols
+
+
+# ---------------------------------------------------------------------------
+# Callback: show/hide floating delete bar
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-delete-bar", "style"),
+    Output("trades-delete-count-text", "children"),
+    Input("trades-grid", "selectedRows"),
+    Input("trades-delete-mode", "data"),
+)
+def update_delete_bar(selected_rows, is_active):
+    _hidden  = {"display": "none"}
+    _visible = {
+        "display": "flex", "alignItems": "center", "gap": "12px",
+        "position": "fixed", "bottom": "20px", "left": "50%",
+        "transform": "translateX(-50%)", "zIndex": 1000,
+        "backgroundColor": "#1e1e1e", "border": f"1px solid {_RED}",
+        "borderRadius": "8px", "padding": "12px 24px",
+        "boxShadow": "0 4px 20px rgba(0,0,0,0.6)",
+    }
+    if not is_active or not selected_rows:
+        return _hidden, ""
+    n = len(selected_rows)
+    return _visible, f"{n} trade(s) selected for deletion"
+
+
+# ---------------------------------------------------------------------------
+# Callback: open delete confirm modal
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-delete-confirm-modal", "is_open"),
+    Output("trades-delete-modal-body", "children"),
+    Output("trades-pending-delete-ids", "data"),
+    Input("trades-confirm-delete-btn", "n_clicks"),
+    Input("trades-delete-modal-cancel", "n_clicks"),
+    Input("trades-delete-modal-confirm", "n_clicks"),
+    State("trades-grid", "selectedRows"),
+    State("trades-delete-confirm-modal", "is_open"),
+    prevent_initial_call=True,
+)
+def manage_delete_modal(confirm_n, cancel_n, execute_n, selected_rows, is_open):
+    tid = dash.ctx.triggered_id
+    if tid == "trades-confirm-delete-btn":
+        if not selected_rows:
+            return no_update, no_update, no_update
+        n = len(selected_rows)
+        ids = [r.get("id") for r in selected_rows if r.get("id")]
+        body = f"Delete {n} trade(s)? This can be undone via the Undo button."
+        return True, body, ids
+    if tid in ("trades-delete-modal-cancel", "trades-delete-modal-confirm"):
+        return False, no_update, no_update
+    return no_update, no_update, no_update
+
+
+# ---------------------------------------------------------------------------
+# Callback: execute delete + update undo stack
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-data-store", "data", allow_duplicate=True),
+    Output("trades-status-bar", "children", allow_duplicate=True),
+    Output("trades-undo-stack", "data"),
+    Output("trades-undo-toast", "is_open"),
+    Output("trades-undo-toast-msg", "children"),
+    Output("trades-delete-mode", "data", allow_duplicate=True),
+    Input("trades-delete-modal-confirm", "n_clicks"),
+    State("trades-pending-delete-ids", "data"),
+    State("trades-grid", "rowData"),
+    State("trades-undo-stack", "data"),
+    State("trades-view-filter", "data"),
+    prevent_initial_call=True,
+)
+def execute_delete(n, ids_to_delete, row_data, undo_stack, view_filter):
+    if not n or not ids_to_delete:
+        return no_update, no_update, no_update, no_update, no_update, no_update
+
+    id_set = set(ids_to_delete)
+    deleted_rows = [r for r in (row_data or []) if r.get("id") in id_set]
+
+    success_count = 0
+    for trade_id in ids_to_delete:
+        if trades_delete(trade_id):
+            success_count += 1
+
+    # Push deleted rows to undo stack (keep last 5 batches)
+    new_stack = list(undo_stack or [])
+    if deleted_rows:
+        new_stack.append(deleted_rows)
+        new_stack = new_stack[-5:]
+
+    rows, status_text = _load_trades(view_filter or "all")
+    toast_msg = f"Deleted {success_count} trade(s)."
+    return rows, status_text, new_stack, True, toast_msg, False
+
+
+# ---------------------------------------------------------------------------
+# Callback: undo last delete
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-data-store", "data", allow_duplicate=True),
+    Output("trades-status-bar", "children", allow_duplicate=True),
+    Output("trades-undo-stack", "data", allow_duplicate=True),
+    Output("trades-undo-toast", "is_open", allow_duplicate=True),
+    Input("trades-undo-btn", "n_clicks"),
+    State("trades-undo-stack", "data"),
+    State("trades-view-filter", "data"),
+    prevent_initial_call=True,
+)
+def undo_delete(n, undo_stack, view_filter):
+    if not n or not undo_stack:
+        return no_update, no_update, no_update, no_update
+
+    last_batch = undo_stack[-1]
+    new_stack  = undo_stack[:-1]
+
+    for trade in last_batch:
+        payload = {
+            k: trade.get(k)
+            for k in ("ticker", "signal_side", "strategy_slug", "signal_date",
+                      "scan_date", "signal_category", "close_price", "notes",
+                      "planned_action", "actual_entry_date", "actual_entry_price",
+                      "actual_exit_date", "actual_exit_price", "quantity", "tags",
+                      "execution_status")
+            if trade.get(k) is not None
+        }
+        if not payload.get("ticker") or not payload.get("strategy_slug"):
+            continue
+        trades_create(payload)
+
+    rows, status_text = _load_trades(view_filter or "all")
+    return rows, status_text, new_stack, False
+
+
+# ---------------------------------------------------------------------------
+# Callback: check sell signals
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-data-store", "data", allow_duplicate=True),
+    Output("trades-status-bar", "children", allow_duplicate=True),
+    Input("trades-check-signals-btn", "n_clicks"),
+    State("trades-data-store", "data"),
+    State("trades-view-filter", "data"),
+    prevent_initial_call=True,
+)
+def check_sell_signals(n_clicks, current_data, view_filter):
+    if not n_clicks or not current_data:
+        return no_update, no_update
+
+    from frontend.strategy.data import fetch_ohlcv
+    from frontend.strategy.engine import (
+        load_strategy, run_strategy, StrategyError,
+    )
+    from frontend.strategy.data import get_source, compute_ma, compute_indicator
+
+    # Only check TRACKED/ENTERED/PARTIAL BUY trades
+    open_statuses = {"TRACKED", "ENTERED", "PARTIAL"}
+    candidates = [
+        r for r in current_data
+        if r.get("signal_side", 1) == 1
+        and r.get("execution_status", "TRACKED") in open_statuses
+        and r.get("strategy_slug")
+    ]
+
+    signal_map: dict[int, dict] = {}
+
+    import datetime as _dt
+    _today = _dt.date.today()
+
+    for trade in candidates:
+        ticker   = trade.get("ticker", "")
+        slug     = trade.get("strategy_slug", "")
+        trade_id = trade.get("id")
+        if not ticker or not slug or not trade_id:
+            continue
+        try:
+            df = fetch_ohlcv(ticker, "1D")
+            if df is None or df.empty:
+                continue
+
+            # Drop today's incomplete bar when market is still open.
+            # yfinance includes the current partial session as the last row
+            # on trading days before 4 pm ET; running signals on it produces
+            # unreliable results and shows today as the check date.
+            try:
+                last_bar_date = df.index[-1].date()
+            except AttributeError:
+                last_bar_date = pd.Timestamp(df.index[-1]).date()
+            if last_bar_date >= _today:
+                df = df.iloc[:-1]
+
+            if df.empty:
+                continue
+
+            # Try user strategy first, then fall back to built-ins.
+            try:
+                mod = load_strategy(slug)
+            except StrategyError:
+                mod = load_strategy(slug, is_builtin=True)
+
+            result = run_strategy(
+                df=df, ticker=ticker, interval="1D",
+                strategy_module=mod, params={},
+                get_source_fn=get_source,
+                compute_ma_fn=compute_ma,
+                compute_indicator_fn=compute_indicator,
+            )
+            last_sig  = int(result.signals.iloc[-1])
+            last_date = str(df.index[-1])[:10]
+            signal_map[trade_id] = {
+                "sell_signal_active": "YES" if last_sig == -1 else "NO",
+                "latest_signal_date": last_date,
+            }
+        except (StrategyError, Exception):
+            signal_map[trade_id] = {
+                "sell_signal_active": "—",
+                "latest_signal_date": "error",
+            }
+
+    # Merge signal results into the current data
+    updated = []
+    for row in current_data:
+        row = dict(row)
+        trade_id = row.get("id")
+        if trade_id in signal_map:
+            row.update(signal_map[trade_id])
+        else:
+            row.setdefault("sell_signal_active", "—")
+            row.setdefault("latest_signal_date", "")
+        updated.append(row)
+
+    checked = len(signal_map)
+    status = f"Signal check complete: {checked} trade(s) checked."
+    return updated, html.Span(status, style={"color": _GREEN})
