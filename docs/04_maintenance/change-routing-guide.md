@@ -37,6 +37,7 @@ This is the most important document for AI agents. Read this before opening any 
 | 16 | [Fix retirement planner logic](#16-fix-retirement-planner-logic) |
 | 17 | [Update documentation after code changes](#17-update-documentation-after-code-changes) |
 | 18 | [Fix or extend the daily strategy scanner](#18-fix-or-extend-the-daily-strategy-scanner) |
+| 19 | [Fix or extend backtest computation](#19-fix-or-extend-backtest-computation) |
 
 ---
 
@@ -347,8 +348,31 @@ See `frontend/strategy/builtins/bb_trend_pullback.py` as reference implementatio
 | Change history window | `src/config.py` (`scanner_history_days`) |
 | Change OHLCV fetch concurrency | `src/scanner/orchestrator.py` (`_FETCH_WORKERS`, `_FETCH_BATCH_SIZE`) |
 | Fix signal detection logic | `src/scanner/orchestrator.py:_extract_recent_signals()` |
+| Fix backtest metrics (both pages) | `frontend/strategy/backtest.py` — see entry #19 |
 | Add new scanner API endpoint | `src/api/routers/scanner.py` + `src/api/schemas.py` + `frontend/api_client.py` |
 | Fix scanner Dash page | `frontend/pages/scanner.py` |
 | Fix drill-down chart | `frontend/strategy/chart.py:build_figure()` |
 | Fix shared OHLCV/indicator helpers | `frontend/strategy/data.py` |
 | Add/change scanner DB columns | `src/scanner/models.py` + `src/database.py:init_db()` (re-import) |
+
+---
+
+## 19. Fix or Extend Backtest Computation
+
+| | |
+|-|-|
+| **Primary files** | `frontend/strategy/backtest.py` |
+| **Likely edit files** | `frontend/strategy/backtest.py` (add field to `BacktestResult`, compute in `run_backtest()`) |
+| **Secondary files** | `src/scanner/models.py` + `src/database.py` (if new field needs DB storage); `src/api/schemas.py` + `src/api/routers/scanner.py` (if exposed via API); `frontend/pages/technical.py` + `frontend/pages/scanner.py` (display) |
+| **Tests** | `pytest tests/test_backtest.py -v` |
+| **Docs to refresh** | `docs/05_strategies/backtest_engine.md` (primary); `docs/06_scanner/signal-result-schema.md` (if API schema changes) |
+| **Do NOT edit** | `frontend/strategy/engine.py:compute_performance()` — this is a deprecated backward-compat wrapper only |
+| **Confidence** | High |
+
+**Adding a new metric step order**:
+1. `backtest.py` — add field to `BacktestResult`, compute in `run_backtest()`
+2. `scanner/models.py` — add nullable column to `ScanBacktest`
+3. `database.py` — add migration entry in `init_db()`
+4. `schemas.py` — add field to `ScanBacktestItem`
+5. `routers/scanner.py` — pass new field in response
+6. Both UI pages — display as needed

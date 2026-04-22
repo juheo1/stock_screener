@@ -55,8 +55,23 @@ build_figure(
 ## Backtest Card in Drill-Down
 
 The drill-down backtest card is fetched from `GET /api/scanner/backtest` and shows:
-- Trade count, win rate, total P&L, average P&L, data period.
 
-Note: `win_rate` and `trade_count` are also now embedded directly in each signal row
-(via the `ScanSignalItem` schema), so the tables themselves can be sorted and filtered
+| Field | Description |
+|-------|-------------|
+| Trade count | Number of completed round-trip trades |
+| Win rate | Fraction of trades with positive P&L |
+| Total P&L | Sum of trade P&Ls in price units |
+| Average P&L | Average trade P&L in price units |
+| Strategy return % | Compounded % return ($1 000 seed, full reinvestment) |
+| Avg return % | Simple average of per-trade % returns |
+| SPY return % | SPY buy-and-hold % over the same date range |
+| Beat SPY | Whether the strategy outperformed SPY buy-and-hold |
+| Data period | `data_start_date` → `data_end_date`, bar count |
+
+All fields come from `BacktestResult` via `run_backtest()` in
+`frontend/strategy/backtest.py`. See [backtest_engine.md](../05_strategies/backtest_engine.md)
+for full field definitions.
+
+Note: `win_rate` and `trade_count` are also embedded directly in each signal
+row (via the `ScanSignalItem` schema), so the tables can be sorted and filtered
 by these values without opening the drill-down panel.

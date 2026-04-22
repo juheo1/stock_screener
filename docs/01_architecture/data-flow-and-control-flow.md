@@ -77,11 +77,35 @@ frontend/pages/technical.py
       constructs StrategyContext (injects _get_source_fn, _compute_ma_fn, _compute_indicator_fn)
       calls module.strategy(ctx) → StrategyResult(signals, metadata)
       _validate_result(result, df)
-  → frontend/strategy/engine.py   compute_performance(df, signals)
-      sequential trade simulation → {trade_count, win_rate, total_pnl, avg_pnl, trades}
+  → frontend/strategy/backtest.py  run_backtest(df, signals, spy_df=spy_df)
+      sequential trade simulation → BacktestResult
+      (trade_count, win_rate, total_pnl, avg_pnl, strategy_return_pct,
+       avg_return_pct, spy_return_pct, beat_spy, data window, trades)
+  → backtest_to_dict(result) → dict stored in dcc.Store
   → _build_figure extended with buy/sell marker traces
-  → Dash callback renders updated figure + performance summary table
+  → Dash callback renders updated figure + full performance card
 ```
+
+## 4b. Strategy Scanner — Batch Backtest
+
+**Trigger**: Scan job (scheduled or manual)
+
+```
+src/scanner/orchestrator.py
+  run_scan(scan_date, trigger_type)
+  → resolve universe (ETF holdings → deduplicated ticker list)
+  → parallel OHLCV fetch (ThreadPoolExecutor)
+  → for each strategy × ticker:
+      frontend/strategy/engine.py   run_strategy(...)  → StrategyResult
+      frontend/strategy/backtest.py run_backtest(df, signals, spy_df=spy_df_bench)
+                                    → BacktestResult
+      backtest_to_dict(result) → ScanBacktest row written to SQLite
+  → ScanSignal rows written to SQLite
+```
+
+Both callers use the **same `run_backtest()` function** from
+`frontend/strategy/backtest.py`. `engine.compute_performance()` is a
+deprecated wrapper kept only for backward compatibility.
 
 ---
 
@@ -112,7 +136,7 @@ src/scheduler.py
 | Metrics | SQL rows → pandas → numeric formulas | Stored in `metrics_annual` / `metrics_quarterly` |
 | Screening | DB rows + threshold params → filtered list | JSON API response |
 | Charting | yfinance OHLCV → Plotly Figure | `dcc.Store` JSON + rendered figure |
-| Strategy | OHLCV + indicator values → signals Series → trades | Chart overlay + performance dict |
+| Strategy | OHLCV + indicator values → signals Series → `run_backtest()` → `BacktestResult` | Chart overlay + performance card / DB row |
 | Retirement | Input params → Monte Carlo simulations | JSON API response (no DB write) |
 
 ---

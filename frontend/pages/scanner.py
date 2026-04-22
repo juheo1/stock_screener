@@ -860,73 +860,19 @@ def render_drilldown(row):
     ]
 
     # ── Backtest card ─────────────────────────────────────────────────
-    bt_data = scanner_get_backtest(ticker, strategy)
-    if bt_data:
-        win_pct = f"{bt_data.get('win_rate', 0) * 100:.1f}%"
-        total   = bt_data.get("total_pnl", 0)
-        avg     = bt_data.get("avg_pnl", 0)
-        trades  = bt_data.get("trade_count", 0)
-        pnl_color = _GREEN if total >= 0 else _RED
-
-        strategy_return = bt_data.get("strategy_return_pct")
-        spy_return      = bt_data.get("spy_return_pct")
-        beat_spy        = bt_data.get("beat_spy")
-        avg_ret_pct     = bt_data.get("avg_return_pct")
-
-        # Build the "vs SPY" row
-        if strategy_return is not None:
-            ret_str  = f"{strategy_return:+.1f}%  (from $1,000 → ${1000*(1+strategy_return/100):.0f})"
-            ret_color = _GREEN if strategy_return >= 0 else _RED
-        else:
-            ret_str  = "N/A"
-            ret_color = _MUTED
-
-        if spy_return is not None and strategy_return is not None:
-            spy_label = (
-                f"{strategy_return:+.1f}% vs {spy_return:+.1f}% — "
-                + ("Beat SPY ✓" if beat_spy else "Underperformed SPY ✗")
-            )
-            spy_color = _GREEN if beat_spy else _RED
-        else:
-            spy_label = "N/A"
-            spy_color = _MUTED
-
+    if signals_series is not None:
+        from frontend.strategy.backtest import run_backtest, backtest_to_dict
+        from frontend.pages.technical import _build_perf_card
+        spy_df = None
+        try:
+            spy_df = fetch_ohlcv("SPY", "1D")
+        except Exception:
+            pass
+        bt = run_backtest(df, signals_series, spy_df=spy_df)
+        perf = backtest_to_dict(bt)
         backtest_card = [
             html.Div("BACKTEST SUMMARY", style=_section_hdr),
-            html.Div([
-                html.Span("Trades: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(str(trades), style={"color": _TEXT, "fontWeight": 600}),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("Win Rate: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(win_pct, style={"color": _TEXT, "fontWeight": 600}),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("Return: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(ret_str, style={"color": ret_color, "fontWeight": 700}),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("vs SPY: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(spy_label, style={"color": spy_color}),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("Total P&L (price pts): ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(f"{total:+.2f}", style={"color": pnl_color, "fontWeight": 700}),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("Avg/Trade: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(
-                    f"{avg:+.2f} (price pts)" + (f" | {avg_ret_pct:+.1f}%" if avg_ret_pct is not None else ""),
-                    style={"color": pnl_color},
-                ),
-            ], style={"marginBottom": "4px"}),
-            html.Div([
-                html.Span("Period: ", style={"color": _MUTED, "fontSize": "0.80rem"}),
-                html.Span(
-                    f"{bt_data.get('data_start_date', '')} → {bt_data.get('data_end_date', '')}",
-                    style={"color": _MUTED, "fontSize": "0.78rem"},
-                ),
-            ]),
+            _build_perf_card(strategy_name, perf),
         ]
     else:
         backtest_card = [

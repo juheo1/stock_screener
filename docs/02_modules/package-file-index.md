@@ -119,10 +119,13 @@
 
 | File | Purpose |
 |------|---------|
-| `engine.py` | Core: `StrategyContext`, `StrategyResult`, `run_strategy()`, `compute_performance()`, file I/O |
+| `backtest.py` | Unified backtest service: `run_backtest()`, `BacktestResult`, `backtest_to_dict()` |
+| `engine.py` | Core: `StrategyContext`, `StrategyResult`, `run_strategy()`, file I/O. `compute_performance()` is a deprecated wrapper. |
 | `indicators.py` | Indicator helpers: BB ribbon zones, SMA slope, slope regime, band width |
 | `candles.py` | Candle-shape helpers: wick ratios, body ratio, min-range mask |
 | `risk.py` | Trade management: `TradeState`, `RatchetTracker`, SL placement helpers |
+| `data.py` | Shared OHLCV + indicator helpers: `fetch_ohlcv()`, `compute_indicator()`, `get_fb_curve()` |
+| `chart.py` | Shared chart builder: `build_figure()` used by Technical Chart and Scanner drill-down |
 
 ## `frontend/strategy/builtins/`
 
@@ -140,6 +143,7 @@
 | File | Coverage area |
 |------|--------------|
 | `test_metrics.py` | Financial metric formulas + zombie classifier |
+| `test_backtest.py` | `frontend/strategy/backtest.py` — `run_backtest()`, `BacktestResult`, `backtest_to_dict()` |
 | `test_bb_strategy.py` | BB Trend-Filtered Pullback strategy |
 | `test_candles.py` | `frontend/strategy/candles.py` |
 | `test_indicators.py` | `frontend/strategy/indicators.py` |
@@ -150,6 +154,9 @@
 | `test_macro_regime_presets.py` | Macro regime preset logic |
 | `test_sentiment_news.py` | News sentiment |
 | `test_geopolitical.py` | GDELT geopolitical data |
+| `test_scanner_calendar.py` | `src/scanner/calendar.py` |
+| `test_scanner_universe.py` | `src/scanner/universe.py` |
+| `test_scanner_orchestrator.py` | `src/scanner/orchestrator.py` (pure unit tests) |
 
 ---
 

@@ -165,13 +165,22 @@ and writing it to SQLite. They are independent of each other.
 
 ## Frontend: `frontend/strategy/`
 
+### `frontend/strategy/backtest.py`
+| | |
+|-|-|
+| **Responsibility** | Unified backtest service: `run_backtest()`, `BacktestResult` dataclass, `backtest_to_dict()` |
+| **Key interface** | `run_backtest(df, signals, *, spy_df, initial_capital) -> BacktestResult` |
+| **Collaborators** | `frontend/pages/technical.py` (Technical Chart), `src/scanner/orchestrator.py` (Scanner) |
+| **Anti-responsibility** | Strategy execution (in `engine.py`); UI rendering; DB access |
+| **Edit for** | Backtest computation logic; adding new `BacktestResult` fields (max drawdown, Sharpe, etc.) |
+
 ### `frontend/strategy/engine.py`
 | | |
 |-|-|
-| **Responsibility** | `StrategyContext`, `StrategyResult`; `run_strategy()`; `compute_performance()`; file I/O (list/load/save/delete) |
+| **Responsibility** | `StrategyContext`, `StrategyResult`; `run_strategy()`; file I/O (list/load/save/delete). `compute_performance()` is a deprecated thin wrapper — use `backtest.run_backtest()` instead. |
 | **Key contract** | Every strategy must define `def strategy(ctx: StrategyContext) -> StrategyResult` |
-| **Anti-responsibility** | Indicator math (in `indicators.py`); candle math (in `candles.py`); risk math (in `risk.py`) |
-| **Edit for** | Performance computation logic; strategy file management; contract validation |
+| **Anti-responsibility** | Backtest computation (now in `backtest.py`); indicator math (in `indicators.py`); candle math (in `candles.py`); risk math (in `risk.py`) |
+| **Edit for** | Strategy file management; contract validation; `run_strategy()` behavior |
 
 ### `frontend/strategy/indicators.py`
 | | |

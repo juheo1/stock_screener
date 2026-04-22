@@ -59,8 +59,12 @@ Returned by `GET /api/scanner/backtest?ticker=AAPL&strategy=bb_trend_pullback`.
 | `trade_count` | int | Number of completed round-trips |
 | `win_rate` | float | Fraction of winning trades (0.0–1.0) |
 | `total_pnl` | float | Cumulative P&L in price units |
-| `avg_pnl` | float | Average trade P&L |
-| `trades` | list | Full trade log (entry/exit price, P&L, bars held) |
+| `avg_pnl` | float | Average trade P&L in price units |
+| `strategy_return_pct` | float | Compounded % return ($1 000 seed, full reinvestment) |
+| `avg_return_pct` | float | Simple average of per-trade % returns |
+| `spy_return_pct` | float \| null | SPY buy-and-hold % over same date range; null if unavailable |
+| `beat_spy` | bool \| null | `true` if `strategy_return_pct > spy_return_pct` |
+| `trades` | list | Full trade log — see [backtest_engine.md](../05_strategies/backtest_engine.md) for schema |
 | `data_start_date` | str | First OHLCV bar ISO date |
 | `data_end_date` | str | Last OHLCV bar ISO date |
 | `bar_count` | int | Number of bars processed |

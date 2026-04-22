@@ -163,6 +163,46 @@ User creates strategy via UI → saved to `data/strategies/<slug>.py` + `.json`.
 
 ---
 
+## Backtest Result Contract
+
+**Location**: `frontend/strategy/backtest.py`
+
+`BacktestResult` is a frozen dataclass returned by `run_backtest()`. Both the
+Technical Chart and the Scanner consume it. The Scanner serializes it to DB
+via `backtest_to_dict()`.
+
+```python
+@dataclasses.dataclass(frozen=True)
+class BacktestResult:
+    trade_count:         int
+    win_rate:            float          # 0.0–1.0
+    total_pnl:           float          # price-unit P&L sum
+    avg_pnl:             float          # total_pnl / trade_count
+    trades:              list           # per-trade dicts
+
+    strategy_return_pct: float          # compounded % return ($1 000 seed)
+    avg_return_pct:      float          # simple avg of per-trade return_pct
+
+    spy_return_pct:      float | None   # SPY buy-and-hold %; None if no spy_df
+    beat_spy:            bool  | None
+
+    data_start_date:     str | None     # "YYYY-MM-DD"
+    data_end_date:       str | None
+    bar_count:           int
+```
+
+### Extension Point: Adding a New Backtest Metric
+
+1. Add field to `BacktestResult`, compute in `run_backtest()`.
+2. `backtest_to_dict()` picks it up automatically (uses `dataclasses.asdict()`).
+3. If the metric needs DB storage: add nullable column to `src/scanner/models.py`
+   + migration in `src/database.py:init_db()`.
+4. Add field to `ScanBacktestItem` in `src/api/schemas.py` if exposed via API.
+
+See [backtest_engine.md](../05_strategies/backtest_engine.md) for full details.
+
+---
+
 ## Risk / Trade Management Helpers
 
 **Location**: `frontend/strategy/risk.py`

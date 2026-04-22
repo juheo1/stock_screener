@@ -113,35 +113,16 @@ Built-in strategies appear first in the dropdown, followed by user strategies, b
 
 ### Performance computation
 
-After execution, `compute_performance(df, signals)` processes the signals sequentially to extract a trade list:
+After execution, the engine calls `run_backtest()` from
+`frontend/strategy/backtest.py` to derive a trade list and summary metrics.
 
-**Position state machine:**
-- Start flat (position = 0)
-- Signal `1` while flat: enter long (position = 1)
-- Signal `-1` while flat: enter short (position = -1)
-- Signal `-1` while long: exit long, record trade, return to flat
-- Signal `1` while short: exit short, record trade, return to flat
-- Signals that match current position direction are ignored (no pyramiding)
+See [backtest_engine.md](backtest_engine.md) for the full specification:
+position state machine, trade record schema, `BacktestResult` field
+definitions, compounding logic, SPY benchmark, and extension guide.
 
-**Trade record:**
-```python
-{
-    "entry_date":  str,    # ISO date
-    "exit_date":   str,    # ISO date
-    "entry_price": float,  # Close at entry bar
-    "exit_price":  float,  # Close at exit bar
-    "pnl":         float,  # exit - entry (long) or entry - exit (short)
-    "side":        "long" | "short",
-}
-```
-
-**Summary metrics:**
-- `trade_count`: total completed round-trip trades
-- `win_rate`: fraction of trades with positive P&L
-- `total_pnl`: sum of all trade P&Ls (in price units, not percentage)
-- `avg_pnl`: total_pnl / trade_count
-
-Note: open positions at the end of the data are not closed and not included in the trade list. P&L is computed on raw price differences, not returns — it does not account for position sizing, commissions, or slippage.
+**Summary**: signals are processed sequentially; one position at a time (no
+pyramiding); open positions at end of data are not counted; P&L is in price
+units with no slippage or commissions.
 
 ### Chart rendering
 

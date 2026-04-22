@@ -101,15 +101,25 @@ the strategy engine, which imports `frontend.strategy.*` only.
 
 ---
 
-## Current Active Work (Branch: strategy_system_plan)
+## Strategy Engine Subsystem
 
-The strategy backtesting system is under active development:
-- `frontend/strategy/engine.py` — core engine (complete)
-- `frontend/strategy/indicators.py` — BB ribbon, slope helpers (complete)
-- `frontend/strategy/candles.py` — wick/body ratio helpers (complete)
-- `frontend/strategy/risk.py` — TradeState, RatchetTracker (complete)
-- `frontend/strategy/builtins/` — 3 built-in strategies (complete)
-- `frontend/pages/technical.py` — UI integration (in progress, has uncommitted changes)
+`frontend/strategy/` contains all strategy-related modules (no FastAPI dependency):
+
+| Module | Responsibility |
+|--------|---------------|
+| `engine.py` | Strategy loading, execution, `StrategyContext`/`StrategyResult` contracts |
+| `backtest.py` | Unified backtest service — `run_backtest()`, `BacktestResult`, `backtest_to_dict()` |
+| `data.py` | Shared OHLCV fetch + indicator computation helpers |
+| `chart.py` | Shared `build_figure()` — used by Technical Chart and Scanner drill-down |
+| `indicators.py` | BB ribbon, SMA slope, regime helpers |
+| `candles.py` | Wick/body ratio candle-shape helpers |
+| `risk.py` | `TradeState`, `RatchetTracker` trailing SL/TP |
+| `builtins/` | 3 built-in strategies (BB trend pullback, MA crossover, mean reversion) |
+
+**Invariant**: `backtest.py` is the single source of truth for backtest
+computation. Both `frontend/pages/technical.py` and
+`src/scanner/orchestrator.py` call `run_backtest()` directly.
+`engine.compute_performance()` is a deprecated backward-compat wrapper.
 
 ---
 
