@@ -18,7 +18,10 @@ import logging
 import threading
 from datetime import date
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
+
+from src.api.deps import require_admin
+from src.api.rate_limit import limiter
 
 from src.api.schemas import (
     ScanBacktestItem,
@@ -157,8 +160,9 @@ def get_results(
 # POST /api/scanner/trigger
 # ---------------------------------------------------------------------------
 
-@router.post("/trigger", response_model=ScanTriggerResponse)
-def trigger_scan(body: ScanTriggerRequest | None = None):
+@router.post("/trigger", response_model=ScanTriggerResponse, dependencies=[Depends(require_admin)])
+@limiter.limit("3/minute")
+def trigger_scan(request: Request, body: ScanTriggerRequest | None = None):
     """Manually trigger a scan for today's trading date in a background thread.
 
     Returns immediately with a job_id.  Poll ``/api/scanner/status?job_id=X``

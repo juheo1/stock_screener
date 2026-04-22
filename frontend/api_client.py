@@ -715,3 +715,26 @@ def trades_import(rows: list[dict]) -> dict | None:
     """Bulk-import trade rows."""
     return _post("/api/trades/import", rows)
 
+
+def trades_import_brokerage(
+    brokerage: str,
+    csv_text: str,
+    strategy_slug: str = "manual",
+    strategy_display_name: str = "Manual / Brokerage Import",
+) -> dict | None:
+    """POST /api/trades/import-brokerage — parse and upsert brokerage positions."""
+    return _post("/api/trades/import-brokerage", {
+        "brokerage": brokerage,
+        "csv_text": csv_text,
+        "strategy_slug": strategy_slug,
+        "strategy_display_name": strategy_display_name,
+    })
+
+
+def trades_list_strategies() -> list[dict]:
+    """GET /api/trades/strategies — return available strategy slugs."""
+    result = _get("/api/trades/strategies")
+    if result is None:
+        return [{"slug": "manual", "display_name": "Manual / Brokerage Import"}]
+    return result
+

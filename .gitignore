@@ -188,3 +188,23 @@ cython_debug/
 .env.test.local
 .venv/
 __pycache__/
+*.docx
+*.csv
+
+# === Project-specific ===
+
+# SQLite database files
+data/*.db
+data/*.db-shm
+data/*.db-wal
+data/*.db-journal
+
+# Generated/cached runtime data
+data/scanner/
+data/technical_chart/
+
+# Planning images (use PNG if needed in repo)
+*.bmp
+
+# Claude Code local settings
+.claude/settings.local.json

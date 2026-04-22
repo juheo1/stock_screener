@@ -252,6 +252,8 @@ def update_trade(db: Session, trade_id: int, payload: dict, user_id: str = "defa
         "quantity",
         "notes",
         "tags",
+        "strategy_slug",
+        "strategy_display_name",
     }
 
     date_fields = {"actual_entry_date", "actual_exit_date"}

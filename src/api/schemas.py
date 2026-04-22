@@ -604,6 +604,8 @@ class TradeUpdateRequest(BaseModel):
     quantity: float | None = None
     notes: str | None = None
     tags: str | None = None
+    strategy_slug: str | None = None
+    strategy_display_name: str | None = None
 
 
 class TrackedTradeItem(BaseModel):
@@ -662,6 +664,28 @@ class TrackedTradeListResponse(BaseModel):
     trades: list[TrackedTradeItem]
 
 
+class TradeImportRow(BaseModel):
+    """One row in a bulk trade import payload."""
+    ticker: str = Field(..., min_length=1, max_length=20)
+    signal_date: str = Field(..., min_length=1, max_length=10)
+    strategy_slug: str | None = Field(default=None, max_length=100)
+    strategy: str | None = Field(default=None, max_length=100)
+    signal_side: str | int = "1"
+    scan_date: str | None = None
+    execution_status: str | None = None
+    actual_entry_price: float | None = None
+    actual_entry_date: str | None = None
+    actual_exit_price: float | None = None
+    actual_exit_date: str | None = None
+    quantity: float | None = None
+    notes: str | None = Field(default=None, max_length=2000)
+    tags: str | None = Field(default=None, max_length=500)
+    close_price: float | None = None
+    open_price: float | None = None
+    high_price: float | None = None
+    low_price: float | None = None
+
+
 class TradeImportResponse(BaseModel):
     """Response for POST /api/trades/import."""
     created: int
@@ -673,3 +697,20 @@ class TradeCheckResponse(BaseModel):
     """Response for GET /api/trades/check."""
     tracked: bool
     trade_id: int | None = None
+
+
+class BrokerageImportRequest(BaseModel):
+    """Payload for POST /api/trades/import-brokerage."""
+    brokerage: str = "auto"        # schwab | fidelity | vanguard | auto
+    csv_text: str = Field(..., max_length=10_000_000)  # raw CSV content, 10 MB limit
+    strategy_slug: str = "manual"
+    strategy_display_name: str = "Manual / Brokerage Import"
+
+
+class BrokerageImportResponse(BaseModel):
+    """Response for POST /api/trades/import-brokerage."""
+    brokerage_detected: str
+    created: int
+    updated: int
+    skipped: int
+    errors: list[str]

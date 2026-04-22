@@ -6,6 +6,9 @@ Application settings loaded from the environment / .env file.
 
 from __future__ import annotations
 
+import secrets
+
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -79,9 +82,17 @@ class Settings(BaseSettings):
     dash_port: int = 8050
     dash_debug: bool = False
 
-    secret_key: str = "dev-secret-change-in-production"
+    secret_key: str = Field(default_factory=lambda: secrets.token_hex(32))
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 10080  # 7 days
+
+    # Admin API key — required for admin/destructive endpoints in production.
+    # In dev mode (DEV_MODE=true), admin endpoints are open without a key.
+    admin_api_key: str = ""
+
+    # Dev mode — enables open access to all endpoints (no API key needed).
+    # MUST be false in any network-exposed deployment.
+    dev_mode: bool = True
 
     scheduler_hour: int = 6
     scheduler_minute: int = 30

@@ -71,7 +71,13 @@ def _build_engine():
             # instead of raising "database is locked" immediately.
             dbapi_conn.execute("PRAGMA busy_timeout=15000")
 
-    logger.info("Database engine created: %s", url)
+    # Redact credentials from the logged URL (safe for PostgreSQL URLs with passwords)
+    from sqlalchemy.engine.url import make_url
+    try:
+        safe_url = make_url(url).render_as_string(hide_password=True)
+    except Exception:
+        safe_url = url.split("@")[-1] if "@" in url else url
+    logger.info("Database engine created: %s", safe_url)
     return engine
 
 
@@ -148,7 +154,12 @@ _NEW_COLUMNS: list[tuple[str, str, str]] = [
 
 
 def _migrate_columns() -> None:
-    """Add any missing columns to existing tables (idempotent)."""
+    """Add any missing columns to existing tables (idempotent).
+
+    SECURITY NOTE: table/column/col_type values come from the hardcoded
+    ``_NEW_COLUMNS`` list above.  Do NOT populate this list from user input
+    or external sources — doing so would create an SQL injection vector.
+    """
     with engine.connect() as conn:
         for table, column, col_type in _NEW_COLUMNS:
             try:

@@ -836,8 +836,16 @@ def get_screener_rows(
 
     total_count = query.count()
 
-    # Sorting
-    sort_col = getattr(MetricsQuarterly, sort_by, MetricsQuarterly.gross_margin)
+    # Sorting — validate against an explicit allowlist to prevent attribute probing
+    _SORTABLE_COLUMNS = {
+        "gross_margin", "roic", "fcf_margin", "interest_coverage", "pe_ratio",
+        "current_price", "market_cap", "current_ratio", "pb_ratio",
+        "graham_number", "ncav_per_share", "roe", "owner_earnings_per_share",
+        "quality_score", "ticker", "period_end",
+    }
+    if sort_by not in _SORTABLE_COLUMNS:
+        sort_by = "gross_margin"
+    sort_col = getattr(MetricsQuarterly, sort_by)
     if hide_na:
         query = query.filter(sort_col.isnot(None))
     query = query.order_by(desc(sort_col) if sort_dir == "desc" else asc(sort_col))

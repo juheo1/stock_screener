@@ -16,9 +16,13 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.base import BaseHTTPMiddleware
 
+from src.api.rate_limit import limiter
 from src.config import settings
 from src.database import init_db
 
@@ -29,6 +33,25 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Inject standard security headers into every response."""
+
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = (
+            "camera=(), microphone=(), geolocation=()"
+        )
+        if not settings.dev_mode:
+            # In production, add a restrictive CSP.
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'"
+            )
+        return response
+
+
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application.
 
@@ -36,6 +59,10 @@ def create_app() -> FastAPI:
     -------
     FastAPI
     """
+    # Disable Swagger/ReDoc when not in dev mode
+    docs_url = "/docs" if settings.dev_mode else None
+    redoc_url = "/redoc" if settings.dev_mode else None
+
     app = FastAPI(
         title="Stock Intelligence & Screener API",
         description=(
@@ -43,9 +70,21 @@ def create_app() -> FastAPI:
             "equities, zombies, comparison, retirement modelling, metals, and macro."
         ),
         version="1.0.0",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url=docs_url,
+        redoc_url=redoc_url,
     )
+
+    # ---------------------------------------------------------------------------
+    # Rate limiting
+    # ---------------------------------------------------------------------------
+    app.state.limiter = limiter
+
+    @app.exception_handler(RateLimitExceeded)
+    async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Rate limit exceeded. Please try again later."},
+        )
 
     # ---------------------------------------------------------------------------
     # CORS — allow Dash frontend running on a different port
@@ -58,9 +97,14 @@ def create_app() -> FastAPI:
             "http://127.0.0.1:8050",
         ],
         allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Content-Type", "Authorization", "X-Admin-API-Key"],
     )
+
+    # ---------------------------------------------------------------------------
+    # Security headers
+    # ---------------------------------------------------------------------------
+    app.add_middleware(SecurityHeadersMiddleware)
 
     # ---------------------------------------------------------------------------
     # Lifecycle

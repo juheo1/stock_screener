@@ -36,7 +36,9 @@ from frontend.api_client import (
     trades_create,
     trades_delete,
     trades_import,
+    trades_import_brokerage,
     trades_list,
+    trades_list_strategies,
     trades_update,
 )
 from frontend.config import API_BASE_URL
@@ -78,7 +80,9 @@ _SIGNAL_COLS = [
      "cellStyle": {"color": "#ffffff", "fontWeight": 700}},
     {"field": "signal_side_str",      "headerName": "Side",        "width": 70,
      "cellRenderer": "agAnimateShowChangeCellRenderer"},
-    {"field": "strategy_display_name","headerName": "Strategy",    "width": 160, "filter": True},
+    {"field": "strategy_display_name","headerName": "Strategy",    "width": 160, "filter": True,
+     "editable": True, "cellEditor": "agSelectCellEditor",
+     "cellEditorParams": {"values": ["Manual / Brokerage Import"]}},
     {"field": "signal_date",          "headerName": "Signal Date", "width": 110},
     {"field": "sell_signal_active",   "headerName": "Sell Signal?","width": 110},
     {"field": "latest_signal_date",   "headerName": "Sig Check Date","width": 115},
@@ -148,6 +152,8 @@ def layout() -> html.Div:
             dcc.Store(id="trades-delete-mode", data=False),
             dcc.Store(id="trades-undo-stack", data=[]),
             dcc.Store(id="trades-pending-delete-ids", data=[]),
+            dcc.Store(id="trades-strategies-store", data=[]),
+            dcc.Store(id="trades-brokerage-csv-store", data=None),
 
             # Header
             html.H4("Trade Tracker", style={"color": "#ffffff", "fontWeight": 700,
@@ -181,6 +187,9 @@ def layout() -> html.Div:
                         ),
                         dbc.Button("Import CSV",   id="trades-import-toggle", color="secondary",
                                    size="sm", outline=True, style={"marginRight": "6px"}),
+                        dbc.Button("Brokerage Import", id="trades-brokerage-import-toggle",
+                                   color="info", size="sm", outline=True,
+                                   style={"marginRight": "6px"}),
                         dbc.Button("⟳ Refresh",    id="trades-refresh-btn", color="secondary",
                                    size="sm", outline=True, style={"marginRight": "6px"}),
                         dbc.Button(
@@ -225,6 +234,81 @@ def layout() -> html.Div:
                             multiple=False,
                         ),
                         html.Div(id="trades-import-feedback", style={"marginTop": "8px"}),
+                    ]),
+                ],
+            ),
+
+            # Brokerage import panel (collapsible)
+            dbc.Collapse(
+                id="trades-brokerage-import-panel",
+                is_open=False,
+                children=[
+                    html.Div(style=_card_style, children=[
+                        html.Div("IMPORT FROM BROKERAGE",
+                                 style={"color": _MUTED, "fontSize": "0.75rem",
+                                        "letterSpacing": "1px", "marginBottom": "8px"}),
+                        dcc.Upload(
+                            id="trades-brokerage-upload",
+                            children=html.Div([
+                                "Drag & drop your brokerage CSV here, or ",
+                                html.A("click to browse",
+                                       style={"color": _BLUE, "cursor": "pointer"}),
+                                html.Br(),
+                                html.Small("Supported: Schwab, Fidelity, Vanguard",
+                                           style={"color": _MUTED}),
+                            ]),
+                            style={
+                                "width": "100%", "height": "80px",
+                                "lineHeight": "normal", "borderWidth": "1px",
+                                "borderStyle": "dashed", "borderRadius": "5px",
+                                "borderColor": _BORDER, "textAlign": "center",
+                                "display": "flex", "alignItems": "center",
+                                "justifyContent": "center", "color": _TEXT,
+                                "cursor": "pointer",
+                            },
+                            multiple=False,
+                        ),
+                        html.Div(id="trades-brokerage-detected",
+                                 style={"marginTop": "8px", "color": _MUTED,
+                                        "fontSize": "0.8rem"}),
+                        dbc.Row([
+                            dbc.Col([
+                                dbc.Label("Brokerage", style={"fontSize": "0.8rem",
+                                                               "color": _MUTED}),
+                                dbc.Select(
+                                    id="trades-brokerage-select",
+                                    options=[
+                                        {"label": "Auto-detect", "value": "auto"},
+                                        {"label": "Charles Schwab", "value": "schwab"},
+                                        {"label": "Fidelity", "value": "fidelity"},
+                                        {"label": "Vanguard", "value": "vanguard"},
+                                    ],
+                                    value="auto",
+                                    size="sm",
+                                ),
+                            ], width=3),
+                            dbc.Col([
+                                dbc.Label("Assign Strategy", style={"fontSize": "0.8rem",
+                                                                      "color": _MUTED}),
+                                dbc.Select(
+                                    id="trades-brokerage-strategy-select",
+                                    options=[{"label": "Manual / Brokerage Import",
+                                              "value": "manual"}],
+                                    value="manual",
+                                    size="sm",
+                                ),
+                            ], width=4),
+                            dbc.Col([
+                                dbc.Label("\u00a0", style={"fontSize": "0.8rem"}),
+                                html.Br(),
+                                dbc.Button("Import", id="trades-brokerage-import-btn",
+                                           color="success", size="sm"),
+                            ], width=2),
+                        ], style={"marginTop": "10px"}),
+                        # Preview table
+                        html.Div(id="trades-brokerage-preview", style={"marginTop": "10px"}),
+                        # Result feedback
+                        html.Div(id="trades-brokerage-feedback", style={"marginTop": "8px"}),
                     ]),
                 ],
             ),
@@ -481,35 +565,6 @@ def update_grid(data):
     return data or []
 
 
-# ---------------------------------------------------------------------------
-# Callback: cell edit → PATCH
-# ---------------------------------------------------------------------------
-
-@callback(
-    Output("trades-data-store", "data", allow_duplicate=True),
-    Output("trades-status-bar", "children", allow_duplicate=True),
-    Input("trades-grid", "cellValueChanged"),
-    State("trades-view-filter", "data"),
-    prevent_initial_call=True,
-)
-def on_cell_edit(changed, view_filter):
-    if not changed:
-        return no_update, no_update
-
-    row = changed[0].get("data", {})
-    trade_id = row.get("id")
-    col_id = changed[0].get("colId")
-    new_val = changed[0].get("value")
-
-    if not trade_id or not col_id:
-        return no_update, no_update
-
-    result = trades_update(trade_id, {col_id: new_val})
-    if result is None:
-        return no_update, html.Span("Update failed", style={"color": _RED})
-
-    rows, status_text = _load_trades(view_filter or "all")
-    return rows, status_text
 
 
 # ---------------------------------------------------------------------------
@@ -934,3 +989,223 @@ def check_sell_signals(n_clicks, current_data, view_filter):
     checked = len(signal_map)
     status = f"Signal check complete: {checked} trade(s) checked."
     return updated, html.Span(status, style={"color": _GREEN})
+
+
+# ---------------------------------------------------------------------------
+# Callback: load strategies into store + populate brokerage strategy dropdown
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-strategies-store", "data"),
+    Output("trades-brokerage-strategy-select", "options"),
+    Output("trades-grid", "columnDefs", allow_duplicate=True),
+    Input("trades-refresh-btn", "n_clicks"),
+    Input("trades-brokerage-import-panel", "is_open"),
+    prevent_initial_call="initial_duplicate",
+)
+def load_strategies(_refresh, _panel_open):
+    strategies = trades_list_strategies()
+    options = [{"label": s["display_name"], "value": s["slug"]} for s in strategies]
+    display_names = [s["display_name"] for s in strategies]
+
+    # Rebuild column defs with the updated strategy dropdown values
+    updated_signal_cols = [
+        col if col["field"] != "strategy_display_name"
+        else {**col, "cellEditorParams": {"values": display_names}}
+        for col in _SIGNAL_COLS
+    ]
+    cols = updated_signal_cols + _EXEC_COLS + _DERIVED_COLS
+    return strategies, options, cols
+
+
+# ---------------------------------------------------------------------------
+# Callback: toggle brokerage import panel
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-brokerage-import-panel", "is_open"),
+    Input("trades-brokerage-import-toggle", "n_clicks"),
+    State("trades-brokerage-import-panel", "is_open"),
+    prevent_initial_call=True,
+)
+def toggle_brokerage_panel(n, is_open):
+    return not is_open
+
+
+# ---------------------------------------------------------------------------
+# Callback: brokerage CSV upload → detect + preview
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-brokerage-csv-store", "data"),
+    Output("trades-brokerage-detected", "children"),
+    Output("trades-brokerage-preview", "children"),
+    Output("trades-brokerage-select", "value"),
+    Input("trades-brokerage-upload", "contents"),
+    State("trades-brokerage-upload", "filename"),
+    prevent_initial_call=True,
+)
+def handle_brokerage_upload(contents, filename):
+    if contents is None:
+        return None, "", None, "auto"
+
+    content_type, content_string = contents.split(",", 1)
+    csv_text = base64.b64decode(content_string).decode("utf-8", errors="replace")
+
+    from src.trade_tracker.brokerage_import import detect_brokerage, parse_positions
+
+    detected = detect_brokerage(csv_text)
+
+    detected_label = {
+        "schwab": "Charles Schwab",
+        "fidelity": "Fidelity",
+        "vanguard": "Vanguard",
+        "unknown": "Unknown (select manually)",
+    }.get(detected, detected.title())
+
+    detected_msg = html.Span(
+        f"File: {filename}  |  Detected: {detected_label}",
+        style={"color": _MUTED, "fontSize": "0.8rem"},
+    )
+
+    # Build preview (first 5 rows)
+    preview_table = None
+    if detected != "unknown":
+        try:
+            positions = parse_positions(detected, csv_text)[:5]
+            if positions:
+                preview_table = html.Div([
+                    html.Div("Preview (first 5 rows):",
+                             style={"color": _MUTED, "fontSize": "0.75rem",
+                                    "marginBottom": "4px"}),
+                    html.Table(
+                        [
+                            html.Thead(html.Tr([
+                                html.Th("Ticker", style={"padding": "4px 8px"}),
+                                html.Th("Qty",    style={"padding": "4px 8px"}),
+                                html.Th("Entry Price", style={"padding": "4px 8px"}),
+                                html.Th("Asset Type", style={"padding": "4px 8px"}),
+                            ], style={"color": _MUTED, "fontSize": "0.75rem"})),
+                            html.Tbody([
+                                html.Tr([
+                                    html.Td(p.ticker,
+                                            style={"padding": "4px 8px", "color": "#fff",
+                                                   "fontWeight": 700}),
+                                    html.Td(f"{p.quantity:,.4f}",
+                                            style={"padding": "4px 8px", "color": _TEXT}),
+                                    html.Td(f"${p.entry_price:,.2f}",
+                                            style={"padding": "4px 8px", "color": _TEXT}),
+                                    html.Td(p.asset_type,
+                                            style={"padding": "4px 8px", "color": _TEXT}),
+                                ])
+                                for p in positions
+                            ]),
+                        ],
+                        style={"width": "100%", "borderCollapse": "collapse",
+                               "backgroundColor": "#0d0d0d", "borderRadius": "4px",
+                               "fontSize": "0.8rem"},
+                    ),
+                ])
+        except Exception as exc:
+            preview_table = html.Span(f"Preview error: {exc}", style={"color": _YELLOW})
+
+    return csv_text, detected_msg, preview_table, detected if detected != "unknown" else "auto"
+
+
+# ---------------------------------------------------------------------------
+# Callback: run brokerage import
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-brokerage-feedback", "children"),
+    Output("trades-data-store", "data", allow_duplicate=True),
+    Input("trades-brokerage-import-btn", "n_clicks"),
+    State("trades-brokerage-csv-store", "data"),
+    State("trades-brokerage-select", "value"),
+    State("trades-brokerage-strategy-select", "value"),
+    State("trades-strategies-store", "data"),
+    State("trades-view-filter", "data"),
+    prevent_initial_call=True,
+)
+def run_brokerage_import(n, csv_text, brokerage, strategy_slug, strategies, view_filter):
+    if not n or not csv_text:
+        return html.Span("No file uploaded.", style={"color": _RED}), no_update
+
+    # Resolve display name from slug
+    strategy_display_name = "Manual / Brokerage Import"
+    for s in (strategies or []):
+        if s.get("slug") == strategy_slug:
+            strategy_display_name = s.get("display_name", strategy_display_name)
+            break
+
+    result = trades_import_brokerage(
+        brokerage=brokerage or "auto",
+        csv_text=csv_text,
+        strategy_slug=strategy_slug or "manual",
+        strategy_display_name=strategy_display_name,
+    )
+    if result is None:
+        return html.Span("Import request failed.", style={"color": _RED}), no_update
+
+    detected = result.get("brokerage_detected", brokerage or "auto")
+    created  = result.get("created", 0)
+    updated  = result.get("updated", 0)
+    skipped  = result.get("skipped", 0)
+    errors   = result.get("errors", [])
+
+    summary = (
+        f"Imported from {detected.title()}: "
+        f"{created} new, {updated} updated, {skipped} skipped."
+    )
+    if errors:
+        summary += f"  {len(errors)} error(s): " + "; ".join(errors[:3])
+        color = _YELLOW
+    else:
+        color = _GREEN
+
+    refreshed_rows, _ = _load_trades(view_filter or "all")
+    return html.Span(summary, style={"color": color}), refreshed_rows
+
+
+# ---------------------------------------------------------------------------
+# Callback: Strategy cell edit → PATCH with slug lookup
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("trades-data-store", "data", allow_duplicate=True),
+    Output("trades-status-bar", "children", allow_duplicate=True),
+    Input("trades-grid", "cellValueChanged"),
+    State("trades-view-filter", "data"),
+    State("trades-strategies-store", "data"),
+    prevent_initial_call=True,
+)
+def on_cell_edit_strategy(changed, view_filter, strategies):
+    """Handle cell edits — for the strategy column, map display_name → slug."""
+    if not changed:
+        return no_update, no_update
+
+    row = changed[0].get("data", {})
+    trade_id = row.get("id")
+    col_id = changed[0].get("colId")
+    new_val = changed[0].get("value")
+
+    if not trade_id or not col_id:
+        return no_update, no_update
+
+    if col_id == "strategy_display_name":
+        # Map display name back to slug
+        slug = "manual"
+        for s in (strategies or []):
+            if s.get("display_name") == new_val:
+                slug = s.get("slug", "manual")
+                break
+        payload = {"strategy_display_name": new_val, "strategy_slug": slug}
+    else:
+        payload = {col_id: new_val}
+
+    result = trades_update(trade_id, payload)
+    if result is None:
+        return no_update, html.Span("Update failed", style={"color": _RED})
+
+    rows, status_text = _load_trades(view_filter or "all")
+    return rows, status_text

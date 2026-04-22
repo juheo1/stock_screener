@@ -16,30 +16,32 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
-from src.api.deps import get_db
+from src.api.deps import get_db, require_admin
+from src.api.rate_limit import limiter
 from src.api.schemas import ComputeRequest, FetchRequest, FetchResponse
 from src.models import Equity
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/admin", tags=["admin"])
+router = APIRouter(
+    prefix="/admin",
+    tags=["admin"],
+    dependencies=[Depends(require_admin)],
+)
 
 
 @router.post("/fetch", response_model=FetchResponse)
-def fetch_data(request: FetchRequest, db: Session = Depends(get_db)) -> FetchResponse:
+@limiter.limit("5/minute")
+def fetch_data(request: Request, body: FetchRequest, db: Session = Depends(get_db)) -> FetchResponse:
     """Fetch financial statements for a list of tickers and persist to DB.
-
-    When ``period_type`` is ``"both"`` (the default), fetches both annual and
-    quarterly statements so the screener can use the most recent available period.
 
     Parameters
     ----------
-    request : FetchRequest
-        ``tickers`` list and ``period_type`` (``"annual"``, ``"quarterly"``,
-        or ``"both"``).
+    body : FetchRequest
+        ``tickers`` list and ``period_type``.
     db : Session
 
     Returns
@@ -47,24 +49,22 @@ def fetch_data(request: FetchRequest, db: Session = Depends(get_db)) -> FetchRes
     FetchResponse
     """
     from src.ingestion.equity import fetch_tickers
-    # Always fetch both periods so quarterly and annual screener views stay in sync.
-    results = fetch_tickers(request.tickers, db, period_type="both")
+    results = fetch_tickers(body.tickers, db, period_type="both")
     return FetchResponse(results=results, message=f"Fetched {len(results)} tickers.")
 
 
 @router.post("/compute", response_model=FetchResponse)
+@limiter.limit("3/minute")
 def compute_metrics(
-    request: ComputeRequest = ComputeRequest(),
+    request: Request,
+    body: ComputeRequest = ComputeRequest(),
     db: Session = Depends(get_db),
 ) -> FetchResponse:
     """Recompute derived metrics for tickers in the database.
 
-    When ``request.tickers`` is provided, only those tickers are processed.
-    When omitted (or ``null``), all tickers in the database are recomputed.
-
     Parameters
     ----------
-    request : ComputeRequest
+    body : ComputeRequest
         Optional ``tickers`` list.  Omit or pass ``{}`` to recompute all.
     db : Session
 
@@ -74,13 +74,13 @@ def compute_metrics(
     """
     from src.metrics import compute_all_metrics, compute_metrics_for_ticker
 
-    if request.tickers:
+    if body.tickers:
         merged: dict[str, int] = {}
-        for sym in request.tickers:
+        for sym in body.tickers:
             q = compute_metrics_for_ticker(sym, db, period_type="quarterly")
             a = compute_metrics_for_ticker(sym, db, period_type="annual")
             merged[sym] = len(q) + len(a)
-        msg = f"Metrics recomputed for {len(request.tickers)} ticker(s)."
+        msg = f"Metrics recomputed for {len(body.tickers)} ticker(s)."
     else:
         q_results = compute_all_metrics(db, period_type="quarterly")
         a_results = compute_all_metrics(db, period_type="annual")
@@ -92,18 +92,17 @@ def compute_metrics(
 
 
 @router.post("/classify", response_model=FetchResponse)
+@limiter.limit("3/minute")
 def classify_zombies(
-    request: ComputeRequest = ComputeRequest(),
+    request: Request,
+    body: ComputeRequest = ComputeRequest(),
     db: Session = Depends(get_db),
 ) -> FetchResponse:
     """Rerun zombie classification for tickers in the database.
 
-    When ``request.tickers`` is provided, only those tickers are classified.
-    When omitted, all tickers in the database are classified.
-
     Parameters
     ----------
-    request : ComputeRequest
+    body : ComputeRequest
         Optional ``tickers`` list.  Omit or pass ``{}`` to classify all.
     db : Session
 
@@ -112,12 +111,12 @@ def classify_zombies(
     FetchResponse
     """
     from src.zombie import classify_all, classify_ticker
-    if request.tickers:
+    if body.tickers:
         results = {}
-        for sym in request.tickers:
+        for sym in body.tickers:
             flag = classify_ticker(sym, db)
             results[sym] = flag.is_zombie if flag else False
-        msg = f"Zombie classification complete for {len(request.tickers)} ticker(s)."
+        msg = f"Zombie classification complete for {len(body.tickers)} ticker(s)."
     else:
         results = classify_all(db)
         msg = "Zombie classification complete."
@@ -218,7 +217,8 @@ def list_tickers(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @router.delete("/ticker/{ticker_sym}")
-def remove_ticker(ticker_sym: str, db: Session = Depends(get_db)) -> dict:
+@limiter.limit("10/minute")
+def remove_ticker(request: Request, ticker_sym: str, db: Session = Depends(get_db)) -> dict:
     """Remove a ticker and all its associated data from the database.
 
     Parameters

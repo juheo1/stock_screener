@@ -25,7 +25,6 @@ from dash import ALL, Input, Output, State, callback, ctx, dcc, html, no_update
 
 from frontend.strategy.engine import (
     StrategyError,
-    compute_performance,
     delete_user_strategy,
     get_chart_bundle,
     list_strategies,
@@ -33,6 +32,7 @@ from frontend.strategy.engine import (
     run_strategy,
     save_user_strategy,
 )
+from frontend.strategy.backtest import run_backtest, backtest_to_dict
 from frontend.strategy.data import (
     INTERVAL_CFG as _INTERVAL_CFG,
     fetch_ohlcv as _fetch_ohlcv,
@@ -1166,21 +1166,35 @@ def _build_strategy_param_form(params_spec: dict) -> list:
 
 
 def _build_perf_card(display_name: str, perf: dict) -> html.Div:
-    """Render a one-line performance summary below the chart."""
+    """Render a two-row performance summary below the chart."""
     trade_count = perf.get("trade_count", 0)
     if trade_count == 0:
         return html.Div(
             f"Strategy '{display_name}' — no trades generated on this data.",
             style={"color": "#555555", "fontSize": "0.72rem", "marginTop": "4px"},
         )
-    total_pnl  = perf["total_pnl"]
-    avg_pnl    = perf["avg_pnl"]
-    win_rate   = perf["win_rate"] * 100
-    pnl_color  = _C_STRAT_BUY if total_pnl >= 0 else _C_STRAT_SELL
-    sign_total = "+" if total_pnl >= 0 else ""
-    sign_avg   = "+" if avg_pnl   >= 0 else ""
+
+    total_pnl           = perf["total_pnl"]
+    avg_pnl             = perf["avg_pnl"]
+    win_rate            = perf["win_rate"] * 100
+    strategy_return_pct = perf.get("strategy_return_pct", 0.0)
+    avg_return_pct      = perf.get("avg_return_pct", 0.0)
+    spy_return_pct      = perf.get("spy_return_pct")
+    beat_spy            = perf.get("beat_spy")
+    data_start          = perf.get("data_start_date", "")
+    data_end            = perf.get("data_end_date", "")
+    bar_count           = perf.get("bar_count", 0)
+
+    pnl_color   = _C_STRAT_BUY if total_pnl           >= 0 else _C_STRAT_SELL
+    ret_color   = _C_STRAT_BUY if strategy_return_pct >= 0 else _C_STRAT_SELL
+    sign_total  = "+" if total_pnl           >= 0 else ""
+    sign_avg    = "+" if avg_pnl             >= 0 else ""
+    sign_ret    = "+" if strategy_return_pct >= 0 else ""
+    sign_avgret = "+" if avg_return_pct      >= 0 else ""
+
     sep = html.Span("  ·  ", style={"color": "#333333"})
-    return html.Div([
+
+    row1 = html.Div([
         html.Span(f"Strategy: {display_name}",
                   style={"color": "#888888", "fontSize": "0.72rem"}),
         sep,
@@ -1195,7 +1209,39 @@ def _build_perf_card(display_name: str, perf: dict) -> html.Div:
         sep,
         html.Span(f"Avg/trade: {sign_avg}{avg_pnl:.2f}",
                   style={"color": "#aaaaaa", "fontSize": "0.72rem"}),
-    ], style={"marginTop": "4px"})
+    ])
+
+    # Row 2: return metrics, SPY comparison, date range
+    row2_items = [
+        html.Span(f"Return: {sign_ret}{strategy_return_pct:.2f}%",
+                  style={"color": ret_color, "fontSize": "0.72rem"}),
+        sep,
+        html.Span(f"Avg/trade: {sign_avgret}{avg_return_pct:.2f}%",
+                  style={"color": "#aaaaaa", "fontSize": "0.72rem"}),
+    ]
+    if spy_return_pct is not None:
+        spy_color  = _C_STRAT_BUY if spy_return_pct >= 0 else _C_STRAT_SELL
+        sign_spy   = "+" if spy_return_pct >= 0 else ""
+        beat_label = "✓ beat SPY" if beat_spy else "✗ missed SPY"
+        beat_color = _C_STRAT_BUY if beat_spy else _C_STRAT_SELL
+        row2_items += [
+            sep,
+            html.Span(f"SPY: {sign_spy}{spy_return_pct:.2f}%",
+                      style={"color": spy_color, "fontSize": "0.72rem"}),
+            sep,
+            html.Span(beat_label,
+                      style={"color": beat_color, "fontSize": "0.72rem",
+                             "fontWeight": 600}),
+        ]
+    if data_start and data_end:
+        row2_items += [
+            sep,
+            html.Span(f"{data_start} → {data_end} ({bar_count} bars)",
+                      style={"color": "#555555", "fontSize": "0.72rem"}),
+        ]
+    row2 = html.Div(row2_items, style={"marginTop": "2px"})
+
+    return html.Div([row1, row2], style={"marginTop": "4px"})
 
 # ---------------------------------------------------------------------------
 # Layout
@@ -2346,7 +2392,15 @@ def _run_strategy(n, selected, chart_data,
                 dbc.Alert(str(exc), color="danger", style=_err_style),
                 no_update, no_update)
 
-    perf = compute_performance(df, result.signals)
+    # Fetch SPY daily data for benchmark comparison (best-effort)
+    spy_df = None
+    try:
+        spy_df = _fetch_ohlcv("SPY", "1D")
+    except Exception:
+        pass
+
+    bt   = run_backtest(df, result.signals, spy_df=spy_df)
+    perf = backtest_to_dict(bt)
 
     store = {
         "name":        selected,

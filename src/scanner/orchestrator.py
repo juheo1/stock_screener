@@ -341,7 +341,8 @@ def _run_scan_locked(
             logger.warning("[Orchestrator] SPY fetch failed (benchmark disabled): %s", _exc)
 
         # ── Signal detection ─────────────────────────────────────────
-        from frontend.strategy.engine import run_strategy, compute_performance
+        from frontend.strategy.engine import run_strategy
+        from frontend.strategy.backtest import run_backtest, backtest_to_dict
         from frontend.strategy.data import get_source, compute_ma, compute_indicator
 
         signal_rows:   list[ScanSignal]   = []
@@ -396,26 +397,25 @@ def _run_scan_locked(
 
                     # Compute backtest (only for tickers with signals)
                     try:
-                        perf = compute_performance(df, result.signals, spy_df=spy_df_bench)
-                        dates_idx = df.index
+                        bt = run_backtest(df, result.signals, spy_df=spy_df_bench)
                         backtest_rows.append(ScanBacktest(
                             job_id=job.id,
                             scan_date=scan_date,
                             ticker=ticker,
                             strategy_slug=slug,
                             strategy_params=json.dumps(params),
-                            trade_count=perf["trade_count"],
-                            win_rate=perf["win_rate"],
-                            total_pnl=perf["total_pnl"],
-                            avg_pnl=perf["avg_pnl"],
-                            trades_json=json.dumps(perf["trades"]),
-                            data_start_date=dates_idx[0].date()  if len(dates_idx) else None,
-                            data_end_date=dates_idx[-1].date()   if len(dates_idx) else None,
-                            bar_count=len(df),
-                            spy_return_pct=perf.get("spy_return_pct"),
-                            strategy_return_pct=perf.get("strategy_return_pct"),
-                            beat_spy=1 if perf.get("beat_spy") else (0 if perf.get("beat_spy") is not None else None),
-                            avg_return_pct=perf.get("avg_return_pct"),
+                            trade_count=bt.trade_count,
+                            win_rate=bt.win_rate,
+                            total_pnl=bt.total_pnl,
+                            avg_pnl=bt.avg_pnl,
+                            trades_json=json.dumps(bt.trades),
+                            data_start_date=_parse_date(bt.data_start_date),
+                            data_end_date=_parse_date(bt.data_end_date),
+                            bar_count=bt.bar_count,
+                            spy_return_pct=bt.spy_return_pct,
+                            strategy_return_pct=bt.strategy_return_pct,
+                            beat_spy=1 if bt.beat_spy else (0 if bt.beat_spy is not None else None),
+                            avg_return_pct=bt.avg_return_pct,
                         ))
                     except Exception as exc:
                         logger.debug("[Orchestrator] Backtest failed for %s/%s: %s",
@@ -452,6 +452,17 @@ def _run_scan_locked(
         raise
     finally:
         db.close()
+
+
+def _parse_date(s: str | None):
+    """Parse a ``"YYYY-MM-DD"`` string to a :class:`~datetime.date`, or ``None``."""
+    from datetime import date as _date
+    if s is None:
+        return None
+    try:
+        return _date.fromisoformat(s)
+    except (ValueError, AttributeError):
+        return None
 
 
 def _get_default_params(mod: Any) -> dict:

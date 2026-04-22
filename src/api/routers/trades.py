@@ -26,13 +26,17 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from src.api.schemas import (
+    BrokerageImportRequest,
+    BrokerageImportResponse,
     TradeCheckResponse,
     TradeCreateRequest,
     TradeImportResponse,
+    TradeImportRow,
     TradeUpdateRequest,
     TrackedTradeItem,
     TrackedTradeListResponse,
 )
+from src.api.deps import require_admin
 from src.database import get_db
 from src.trade_tracker.models import TrackedTrade
 from src.trade_tracker.service import (
@@ -190,12 +194,88 @@ def export_trades(
 
 @router.post("/import", response_model=TradeImportResponse)
 def import_trades(
-    body: list[dict],
+    body: list[TradeImportRow],
     db: Session = Depends(get_db),
 ) -> TradeImportResponse:
-    """Bulk-import trades from a list of row dicts (from CSV upload)."""
-    result = import_trades_csv(db, body)
+    """Bulk-import trades from a list of validated row objects (from CSV upload)."""
+    rows = [row.model_dump() for row in body]
+    result = import_trades_csv(db, rows)
     return TradeImportResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# GET /api/trades/strategies  — list available strategy slugs + display names
+# ---------------------------------------------------------------------------
+
+@router.get("/strategies", response_model=list[dict])
+def list_trade_strategies() -> list[dict]:
+    """Return all available strategy slugs and display names.
+
+    Always includes the manual/brokerage-import option as the first entry.
+    """
+    manual_entry = {"slug": "manual", "display_name": "Manual / Brokerage Import"}
+    try:
+        from frontend.strategy.engine import list_strategies
+        strats = [
+            {"slug": s["name"], "display_name": s["display_name"]}
+            for s in list_strategies()
+        ]
+    except Exception:
+        strats = []
+    # Deduplicate: manual is always first
+    seen = {"manual"}
+    result = [manual_entry]
+    for s in strats:
+        if s["slug"] not in seen:
+            seen.add(s["slug"])
+            result.append(s)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# POST /api/trades/import-brokerage
+# ---------------------------------------------------------------------------
+
+@router.post("/import-brokerage", response_model=BrokerageImportResponse)
+def import_brokerage(
+    body: BrokerageImportRequest,
+    db: Session = Depends(get_db),
+) -> BrokerageImportResponse:
+    """Parse a brokerage CSV export and upsert positions into TrackedTrade."""
+    from src.trade_tracker.brokerage_import import (
+        detect_brokerage,
+        import_brokerage_positions,
+        parse_positions,
+    )
+
+    brokerage = body.brokerage
+    if brokerage == "auto":
+        brokerage = detect_brokerage(body.csv_text)
+        if brokerage == "unknown":
+            raise HTTPException(
+                status_code=422,
+                detail="Could not auto-detect brokerage. Please specify brokerage explicitly.",
+            )
+
+    try:
+        positions = parse_positions(brokerage, body.csv_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    result = import_brokerage_positions(
+        db=db,
+        positions=positions,
+        strategy_slug=body.strategy_slug,
+        strategy_display_name=body.strategy_display_name,
+    )
+
+    return BrokerageImportResponse(
+        brokerage_detected=brokerage,
+        created=result.created,
+        updated=result.updated,
+        skipped=result.skipped,
+        errors=result.errors,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -239,7 +319,7 @@ def update_existing_trade(
 # DELETE /api/trades/{id}
 # ---------------------------------------------------------------------------
 
-@router.delete("/{trade_id}", status_code=204)
+@router.delete("/{trade_id}", status_code=204, dependencies=[Depends(require_admin)])
 def delete_existing_trade(
     trade_id: int,
     db: Session = Depends(get_db),
