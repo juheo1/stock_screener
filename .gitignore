@@ -209,3 +209,4 @@ data/technical_chart/
 # Claude Code local settings
 .claude/settings.local.json
 /data
+=15.0.0
