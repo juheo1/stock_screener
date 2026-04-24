@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "extreme_gap_fade",
+  "display_name": "S1 Extreme Gap Fade",
+  "description": "Fade extreme overnight gaps that fail to extend, filtered by low premarket RVOL. Counter-gap entry after 15-minute observation window confirms reversal via OR midpoint and VWAP.",
+  "timeframe": "intraday",
+  "strategy_id": "S1",
+  "regime": "extreme_gap_low_rvol",
+  "default_params": {
+    "gap_z_threshold": 1.5,
+    "observation_minutes": 15,
+    "max_extension_atr": 0.35,
+    "stop_atr_mult": 0.35,
+    "max_stop_atr": 0.60,
+    "tp1_gap_fill_pct": 0.50,
+    "tp2_r_multiple": 1.75,
+    "rvol_ceiling": 2.0,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5
+  }
+}

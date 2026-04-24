@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "opening_range_breakout",
+  "display_name": "S2 Opening Range Breakout",
+  "description": "Trade breakouts of the first N-minute range, filtered by OR candle direction, volume confirmation, and gap direction. Uses EMA trailing stop and OR midpoint for exit.",
+  "timeframe": "intraday",
+  "strategy_id": "S2",
+  "regime": "high_rvol_any_gap",
+  "default_params": {
+    "or_length_minutes": 15,
+    "breakout_buffer_bps": 2.0,
+    "or_volume_mult": 1.5,
+    "stop_atr_mult": 0.10,
+    "stop_or_range_mult": 0.80,
+    "max_stop_atr": 0.40,
+    "partial_tp_r": 2.0,
+    "gap_filter_z": 1.0,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5,
+    "ema_trail_period": 20
+  }
+}

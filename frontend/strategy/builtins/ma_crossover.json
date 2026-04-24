@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "ma_crossover",
+  "display_name": "MA Crossover",
+  "description": "Simple moving average crossover strategy: buys when the fast MA crosses above the slow MA, sells when it crosses below.",
+  "timeframe": "daily"
+}

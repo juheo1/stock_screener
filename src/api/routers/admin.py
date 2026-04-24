@@ -34,7 +34,7 @@ router = APIRouter(
 
 
 @router.post("/fetch", response_model=FetchResponse)
-@limiter.limit("5/minute")
+@limiter.limit("60/minute")
 def fetch_data(request: Request, body: FetchRequest, db: Session = Depends(get_db)) -> FetchResponse:
     """Fetch financial statements for a list of tickers and persist to DB.
 
@@ -54,7 +54,7 @@ def fetch_data(request: Request, body: FetchRequest, db: Session = Depends(get_d
 
 
 @router.post("/compute", response_model=FetchResponse)
-@limiter.limit("3/minute")
+@limiter.limit("60/minute")
 def compute_metrics(
     request: Request,
     body: ComputeRequest = ComputeRequest(),
@@ -92,7 +92,7 @@ def compute_metrics(
 
 
 @router.post("/classify", response_model=FetchResponse)
-@limiter.limit("3/minute")
+@limiter.limit("60/minute")
 def classify_zombies(
     request: Request,
     body: ComputeRequest = ComputeRequest(),
@@ -217,7 +217,7 @@ def list_tickers(db: Session = Depends(get_db)) -> list[dict]:
 
 
 @router.delete("/ticker/{ticker_sym}")
-@limiter.limit("10/minute")
+@limiter.limit("60/minute")
 def remove_ticker(request: Request, ticker_sym: str, db: Session = Depends(get_db)) -> dict:
     """Remove a ticker and all its associated data from the database.
 

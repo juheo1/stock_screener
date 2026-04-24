@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "name": "vwap_pullback",
+  "display_name": "S5 VWAP Pullback",
+  "description": "After an initial impulse from the open (>= 0.5 ATR), wait for a 25-50% retracement that holds above VWAP, then enter on the pullback rebreak. Entry window 10:00-12:30 ET. Trail via VWAP or EMA-20.",
+  "timeframe": "intraday",
+  "strategy_id": "S5",
+  "regime": "small_gap_with_impulse",
+  "default_params": {
+    "impulse_atr_mult": 0.50,
+    "retrace_min_pct": 0.25,
+    "retrace_max_pct": 0.50,
+    "stop_atr_mult": 0.30,
+    "partial_tp_r": 1.5,
+    "trail_method": "vwap",
+    "entry_window_start_hour": 10,
+    "entry_window_end_hour": 12,
+    "entry_window_end_minute": 30,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5
+  }
+}

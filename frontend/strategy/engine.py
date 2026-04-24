@@ -148,6 +148,7 @@ def list_strategies() -> list[dict]:
             "name":         path.stem,
             "display_name": meta.get("display_name", path.stem.replace("_", " ").title()),
             "is_builtin":   True,
+            "timeframe":    meta.get("timeframe", "daily"),
             "path":         str(path),
         })
 
@@ -157,6 +158,7 @@ def list_strategies() -> list[dict]:
             "name":         path.stem,
             "display_name": meta.get("display_name", path.stem.replace("_", " ").title()),
             "is_builtin":   False,
+            "timeframe":    meta.get("timeframe", "daily"),
             "path":         str(path),
         })
 

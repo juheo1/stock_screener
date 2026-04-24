@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "name": "gap_dispatcher",
+  "display_name": "Gap Regime Dispatcher",
+  "description": "Meta-rule that classifies each session into a gap regime and routes to the appropriate sub-strategy: small-gap → S4+S5, high-RVOL gap → S6+S2, extreme low-RVOL gap → S1, else → S3.",
+  "timeframe": "intraday",
+  "strategy_id": "META",
+  "regime": "all",
+  "default_params": {
+    "small_gap_z": 1.0,
+    "rvol_high_threshold": 2.0,
+    "extreme_gap_z": 1.5,
+    "or_length_minutes": 15,
+    "ema_fast": 8,
+    "ema_slow": 34,
+    "stop_atr_mult": 0.35,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5
+  }
+}

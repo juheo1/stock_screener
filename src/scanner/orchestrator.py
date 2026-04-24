@@ -23,24 +23,40 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import traceback
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_SCAN_LOCK = threading.Lock()
+_SCAN_LOCK  = threading.Lock()
+_STOP_EVENT = threading.Event()
 
-# Delay between yfinance fetch requests to avoid rate-limiting (seconds)
-_FETCH_DELAY = 0.5          # delay between individual requests
-_FETCH_BATCH_PAUSE = 2.0    # longer pause between batches
-_FETCH_BATCH_SIZE = 10       # tickers per batch
+# Use at most 50% of available CPUs for strategy evaluation threads.
+# Capped at 8 to avoid excessive context-switching on large machines.
+_MAX_EVAL_WORKERS = max(1, min(8, (os.cpu_count() or 2) // 2))
+
+
+class _ScanStopped(Exception):
+    """Raised internally when a user-initiated stop is detected."""
+
+
+# Chunk size for yf.download batch calls and pause between chunks
+_DOWNLOAD_CHUNK_SIZE  = 100  # tickers per yf.download call
+_DOWNLOAD_CHUNK_PAUSE = 0.5  # seconds between chunks
 
 
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+def stop_scan() -> None:
+    """Signal any currently running scan to stop at its next checkpoint."""
+    _STOP_EVENT.set()
+
 
 def is_scan_running() -> bool:
     """Return True if the scan lock is currently held."""
@@ -59,6 +75,7 @@ def run_scan(
     etf_tickers: list[str] | None = None,
     force: bool = False,
     existing_job_id: int | None = None,
+    timeframe: str = "daily",
 ) -> int:
     """Execute a full scan for *scan_date*.
 
@@ -79,6 +96,9 @@ def run_scan(
         Pre-created job row ID to update instead of creating a new row.  The
         trigger endpoint creates this row and sets it to PENDING before launching
         the background thread, so the frontend can start polling immediately.
+    timeframe:
+        Strategy timeframe filter: ``"daily"`` (default), ``"intraday"``, or
+        ``"all"``.  Ignored when *strategy_slugs* is provided explicitly.
 
     Returns
     -------
@@ -92,11 +112,13 @@ def run_scan(
     if not _SCAN_LOCK.acquire(blocking=False):
         raise RuntimeError("A scan is already in progress.")
 
+    _STOP_EVENT.clear()   # reset any prior stop signal before starting
     job_id: int = -1
     try:
         job_id = _run_scan_locked(
             scan_date, trigger_type, strategy_slugs, etf_tickers,
             force=force, existing_job_id=existing_job_id,
+            timeframe=timeframe,
         )
     finally:
         _SCAN_LOCK.release()
@@ -219,6 +241,7 @@ def _run_scan_locked(
     etf_tickers: list[str] | None,
     force: bool = False,
     existing_job_id: int | None = None,
+    timeframe: str = "daily",
 ) -> int:
     """Inner scan logic executed while holding the lock."""
     from src.scanner.models import (
@@ -295,9 +318,14 @@ def _run_scan_locked(
         from frontend.strategy.engine import list_strategies, load_strategy
         all_strategies = list_strategies()
         if strategy_slugs:
+            # Explicit slug list overrides timeframe filter
             strat_list = [s for s in all_strategies if s["name"] in set(strategy_slugs)]
         else:
-            strat_list = [s for s in all_strategies if s["is_builtin"]]
+            builtin = [s for s in all_strategies if s["is_builtin"]]
+            if timeframe != "all":
+                strat_list = [s for s in builtin if s.get("timeframe", "daily") == timeframe]
+            else:
+                strat_list = builtin
 
         if not strat_list:
             strat_list = all_strategies  # fallback: all strategies
@@ -340,86 +368,60 @@ def _run_scan_locked(
         except Exception as _exc:
             logger.warning("[Orchestrator] SPY fetch failed (benchmark disabled): %s", _exc)
 
-        # ── Signal detection ─────────────────────────────────────────
-        from frontend.strategy.engine import run_strategy
-        from frontend.strategy.backtest import run_backtest, backtest_to_dict
-        from frontend.strategy.data import get_source, compute_ma, compute_indicator
-
+        # ── Signal detection (parallel, one thread per ticker) ───────
         signal_rows:   list[ScanSignal]   = []
         backtest_rows: list[ScanBacktest] = []
         total_signals = 0
 
-        for ticker, df in ohlcv_map.items():
-            if df is None or df.empty:
-                continue
+        ticker_items = [
+            (ticker, df)
+            for ticker, df in ohlcv_map.items()
+            if df is not None and not df.empty
+        ]
+        logger.info(
+            "[Orchestrator] Evaluating %d tickers with %d workers ...",
+            len(ticker_items), _MAX_EVAL_WORKERS,
+        )
 
-            source_etfs_json = json.dumps(
-                universe.ticker_to_etfs.get(ticker, [])
-            )
+        with ThreadPoolExecutor(max_workers=_MAX_EVAL_WORKERS) as pool:
+            futures = {
+                pool.submit(
+                    _eval_ticker,
+                    ticker, df,
+                    json.dumps(universe.ticker_to_etfs.get(ticker, [])),
+                    strat_modules, strat_params,
+                    scan_date, history_window, spy_df_bench,
+                ): ticker
+                for ticker, df in ticker_items
+            }
 
-            for slug, mod in strat_modules.items():
-                params = strat_params.get(slug, {})
+            completed = 0
+            for future in as_completed(futures):
+                if _STOP_EVENT.is_set():
+                    raise _ScanStopped("Scan stopped by user.")
                 try:
-                    result = run_strategy(
-                        df=df,
-                        ticker=ticker,
-                        interval="1D",
-                        strategy_module=mod,
-                        params=params,
-                        get_source_fn=get_source,
-                        compute_ma_fn=compute_ma,
-                        compute_indicator_fn=compute_indicator,
-                    )
+                    sig_dicts, bt_dicts, count = future.result()
                 except Exception as exc:
-                    logger.debug("[Orchestrator] Strategy %s failed for %s: %s",
-                                 slug, ticker, exc)
+                    ticker = futures[future]
+                    logger.warning("[Orchestrator] Ticker %s eval error: %s", ticker, exc)
                     continue
 
-                # Extract recent signals within the history window
-                recent = _extract_recent_signals(
-                    result.signals, df, scan_date, history_window
-                )
+                total_signals += count
+                for s in sig_dicts:
+                    signal_rows.append(ScanSignal(
+                        job_id=job.id, scan_date=scan_date, **s,
+                    ))
+                for b in bt_dicts:
+                    backtest_rows.append(ScanBacktest(
+                        job_id=job.id, scan_date=scan_date, **b,
+                    ))
 
-                if recent:
-                    total_signals += len(recent)
-                    for sig in recent:
-                        signal_rows.append(ScanSignal(
-                            job_id=job.id,
-                            scan_date=scan_date,
-                            signal_date=sig["signal_date"],
-                            ticker=ticker,
-                            strategy_slug=slug,
-                            signal_type=sig["signal_type"],
-                            close_price=sig["close_price"],
-                            days_ago=sig["days_ago"],
-                            source_etfs=source_etfs_json,
-                        ))
-
-                    # Compute backtest (only for tickers with signals)
-                    try:
-                        bt = run_backtest(df, result.signals, spy_df=spy_df_bench)
-                        backtest_rows.append(ScanBacktest(
-                            job_id=job.id,
-                            scan_date=scan_date,
-                            ticker=ticker,
-                            strategy_slug=slug,
-                            strategy_params=json.dumps(params),
-                            trade_count=bt.trade_count,
-                            win_rate=bt.win_rate,
-                            total_pnl=bt.total_pnl,
-                            avg_pnl=bt.avg_pnl,
-                            trades_json=json.dumps(bt.trades),
-                            data_start_date=_parse_date(bt.data_start_date),
-                            data_end_date=_parse_date(bt.data_end_date),
-                            bar_count=bt.bar_count,
-                            spy_return_pct=bt.spy_return_pct,
-                            strategy_return_pct=bt.strategy_return_pct,
-                            beat_spy=1 if bt.beat_spy else (0 if bt.beat_spy is not None else None),
-                            avg_return_pct=bt.avg_return_pct,
-                        ))
-                    except Exception as exc:
-                        logger.debug("[Orchestrator] Backtest failed for %s/%s: %s",
-                                     ticker, slug, exc)
+                completed += 1
+                if completed % 50 == 0:
+                    logger.info(
+                        "[Orchestrator] Progress: %d/%d tickers evaluated, %d signals so far.",
+                        completed, len(ticker_items), total_signals,
+                    )
 
         # ── Bulk write ───────────────────────────────────────────────
         if signal_rows:
@@ -438,6 +440,19 @@ def _run_scan_locked(
         )
         return job.id
 
+    except _ScanStopped as exc:
+        logger.info("[Orchestrator] Scan stopped by user (job %s).",
+                    job.id if job is not None else "?")
+        if job is not None:
+            try:
+                from src.scanner.models import STATUS_STOPPED
+                job.status        = STATUS_STOPPED
+                job.error_message = str(exc)
+                job.completed_at  = datetime.now(timezone.utc).replace(tzinfo=None)
+                db.commit()
+            except Exception:
+                pass
+        raise
     except Exception as exc:
         tb = traceback.format_exc()
         logger.error("[Orchestrator] Job failed: %s\n%s", exc, tb)
@@ -471,40 +486,215 @@ def _get_default_params(mod: Any) -> dict:
     return {k: v["default"] for k, v in params_spec.items()}
 
 
-def _fetch_ohlcv_batch(tickers: list[str]) -> dict[str, Any]:
-    """Fetch OHLCV for all tickers serially in small batches.
+def _eval_ticker(
+    ticker: str,
+    df: Any,
+    source_etfs_json: str,
+    strat_modules: dict,
+    strat_params: dict,
+    scan_date: date,
+    history_window: list,
+    spy_df_bench: Any,
+) -> tuple[list[dict], list[dict], int]:
+    """Evaluate all strategies for one ticker.
 
-    Fetches one ticker at a time with a short delay between requests,
-    and a longer pause between batches, to stay under yfinance rate limits.
+    Returns (signal_dicts, backtest_dicts, signal_count).
+    All inputs are read-only; pandas/numpy ops release the GIL so this is
+    safe to run concurrently via ThreadPoolExecutor.
     """
+    from frontend.strategy.engine import run_strategy
+    from frontend.strategy.backtest import run_backtest
+    from frontend.strategy.data import get_source, compute_ma, compute_indicator
+
+    sig_dicts: list[dict] = []
+    bt_dicts:  list[dict] = []
+    count = 0
+
+    for slug, mod in strat_modules.items():
+        if _STOP_EVENT.is_set():
+            break
+        params = strat_params.get(slug, {})
+        try:
+            result = run_strategy(
+                df=df,
+                ticker=ticker,
+                interval="1D",
+                strategy_module=mod,
+                params=params,
+                get_source_fn=get_source,
+                compute_ma_fn=compute_ma,
+                compute_indicator_fn=compute_indicator,
+            )
+        except Exception as exc:
+            logger.debug("[Orchestrator] Strategy %s failed for %s: %s", slug, ticker, exc)
+            continue
+
+        recent = _extract_recent_signals(result.signals, df, scan_date, history_window)
+        if not recent:
+            continue
+
+        count += len(recent)
+        for sig in recent:
+            sig_dicts.append({
+                "ticker":        ticker,
+                "strategy_slug": slug,
+                "signal_date":   sig["signal_date"],
+                "signal_type":   sig["signal_type"],
+                "close_price":   sig["close_price"],
+                "days_ago":      sig["days_ago"],
+                "source_etfs":   source_etfs_json,
+            })
+
+        try:
+            bt = run_backtest(df, result.signals, spy_df=spy_df_bench)
+            bt_dicts.append({
+                "ticker":              ticker,
+                "strategy_slug":       slug,
+                "strategy_params":     json.dumps(params),
+                "trade_count":         bt.trade_count,
+                "win_rate":            bt.win_rate,
+                "total_pnl":           bt.total_pnl,
+                "avg_pnl":             bt.avg_pnl,
+                "trades_json":         json.dumps(bt.trades),
+                "data_start_date":     _parse_date(bt.data_start_date),
+                "data_end_date":       _parse_date(bt.data_end_date),
+                "bar_count":           bt.bar_count,
+                "spy_return_pct":      bt.spy_return_pct,
+                "strategy_return_pct": bt.strategy_return_pct,
+                "beat_spy":            1 if bt.beat_spy else (0 if bt.beat_spy is not None else None),
+                "avg_return_pct":      bt.avg_return_pct,
+            })
+        except Exception as exc:
+            logger.debug("[Orchestrator] Backtest failed for %s/%s: %s", ticker, slug, exc)
+
+    return sig_dicts, bt_dicts, count
+
+
+def _fetch_ohlcv_batch(tickers: list[str]) -> dict[str, Any]:
+    """Fetch OHLCV for all tickers, preferring the Parquet cache.
+
+    Cache-first strategy:
+    1. Ensure the daily Parquet cache is current (incremental sync).
+    2. Read all tickers from the cache.
+    3. Fall back to live yf.download for any ticker not in the cache.
+
+    On the first scan of the day this triggers an incremental fetch
+    (typically 1–5 s for the delta).  Subsequent same-day scans are
+    pure Parquet reads (~2–3 s for 400 tickers, zero network calls).
+    """
+    from src.config import settings
+
+    # ── Attempt cache-first path ─────────────────────────────────────
+    try:
+        from src.ohlcv.store import OHLCVStore
+        from src.ohlcv.fetcher import OHLCVFetcher
+
+        store   = OHLCVStore(settings.ohlcv_dir)
+        fetcher = OHLCVFetcher(store, stale_hours=settings.ohlcv_daily_stale_hours)
+
+        # Incremental sync (skips tickers synced within stale_hours)
+        logger.info("[OHLCV] Running incremental daily sync for %d tickers ...", len(tickers))
+        report = fetcher.sync_daily(tickers)
+        logger.info(
+            "[OHLCV] Sync: %d updated, %d skipped (fresh), %d failed.",
+            len(report.succeeded), len(report.skipped), len(report.failed),
+        )
+
+        # Read everything from cache
+        results: dict[str, Any] = {}
+        missing: list[str] = []
+        for ticker in tickers:
+            if _STOP_EVENT.is_set():
+                break
+            df = store.read_daily(ticker)
+            if df is not None and not df.empty:
+                results[ticker] = df
+            else:
+                missing.append(ticker)
+                results[ticker] = None
+
+        if not missing:
+            return results
+
+        logger.info("[OHLCV] %d tickers not in cache — falling back to live fetch.", len(missing))
+        live = _fetch_ohlcv_live(missing)
+        results.update(live)
+        return results
+
+    except ImportError:
+        # pyarrow not installed — fall back to live fetch for all tickers
+        logger.warning("[OHLCV] Cache unavailable (pyarrow missing?). Using live fetch.")
+    except Exception as exc:
+        logger.warning("[OHLCV] Cache path failed (%s). Falling back to live fetch.", exc)
+
+    return _fetch_ohlcv_live(tickers)
+
+
+def _fetch_ohlcv_live(tickers: list[str]) -> dict[str, Any]:
+    """Legacy live yf.download path (used as fallback when cache is unavailable)."""
     import time as _time
-    from frontend.strategy.data import fetch_ohlcv
+    import pandas as pd
+    import yfinance as yf
 
     results: dict[str, Any] = {}
 
-    batches = [
-        tickers[i:i + _FETCH_BATCH_SIZE]
-        for i in range(0, len(tickers), _FETCH_BATCH_SIZE)
+    chunks = [
+        tickers[i:i + _DOWNLOAD_CHUNK_SIZE]
+        for i in range(0, len(tickers), _DOWNLOAD_CHUNK_SIZE)
     ]
 
-    for batch_idx, batch in enumerate(batches):
-        for ticker in batch:
-            try:
-                df = fetch_ohlcv(ticker, "1D")
-                results[ticker] = df
-            except Exception as exc:
-                logger.debug("[OHLCV] %s fetch error: %s", ticker, exc)
-                results[ticker] = None
-            _time.sleep(_FETCH_DELAY)
+    for chunk_idx, chunk in enumerate(chunks):
+        if _STOP_EVENT.is_set():
+            break
 
-        if batch_idx < len(batches) - 1:
-            logger.debug(
-                "[OHLCV] Batch %d/%d done (%d fetched so far), pausing %.1fs ...",
-                batch_idx + 1, len(batches),
-                sum(1 for v in results.values() if v is not None),
-                _FETCH_BATCH_PAUSE,
+        try:
+            raw = yf.download(
+                chunk,
+                period="2y",
+                interval="1d",
+                auto_adjust=True,
+                progress=False,
+                threads=True,
             )
-            _time.sleep(_FETCH_BATCH_PAUSE)
+        except Exception as exc:
+            logger.warning("[OHLCV] Chunk %d download failed: %s", chunk_idx, exc)
+            for t in chunk:
+                results[t] = None
+            continue
+
+        for ticker in chunk:
+            if _STOP_EVENT.is_set():
+                break
+            try:
+                if isinstance(raw.columns, pd.MultiIndex):
+                    df = raw.xs(ticker, axis=1, level=1)
+                else:
+                    df = raw.copy()
+
+                if df is None or df.empty:
+                    results[ticker] = None
+                    continue
+
+                cols = [c for c in ["Open", "High", "Low", "Close", "Volume"] if c in df.columns]
+                if not cols:
+                    results[ticker] = None
+                    continue
+
+                df = df[cols].dropna()
+                results[ticker] = df if not df.empty else None
+            except Exception as exc:
+                logger.debug("[OHLCV] %s extraction error: %s", ticker, exc)
+                results[ticker] = None
+
+        logger.debug(
+            "[OHLCV] Chunk %d/%d done (%d/%d succeeded so far).",
+            chunk_idx + 1, len(chunks),
+            sum(1 for v in results.values() if v is not None),
+            len(tickers),
+        )
+
+        if chunk_idx < len(chunks) - 1:
+            _time.sleep(_DOWNLOAD_CHUNK_PAUSE)
 
     return results
 

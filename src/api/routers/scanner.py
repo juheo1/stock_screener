@@ -161,7 +161,7 @@ def get_results(
 # ---------------------------------------------------------------------------
 
 @router.post("/trigger", response_model=ScanTriggerResponse, dependencies=[Depends(require_admin)])
-@limiter.limit("3/minute")
+@limiter.limit("60/minute")
 def trigger_scan(request: Request, body: ScanTriggerRequest | None = None):
     """Manually trigger a scan for today's trading date in a background thread.
 
@@ -181,6 +181,7 @@ def trigger_scan(request: Request, body: ScanTriggerRequest | None = None):
     strategy_slugs = body.strategy_slugs if body else None
     etf_tickers    = body.etf_tickers    if body else None
     force          = body.force          if body else False
+    timeframe      = body.timeframe      if body else "daily"
 
     db = SessionLocal()
     try:
@@ -249,6 +250,7 @@ def trigger_scan(request: Request, body: ScanTriggerRequest | None = None):
                 etf_tickers=etf_tickers,
                 force=_force,
                 existing_job_id=_job_id,
+                timeframe=timeframe,
             )
         except Exception as exc:
             logger.error("[Scanner] Manual scan failed: %s", exc)
@@ -264,6 +266,22 @@ def trigger_scan(request: Request, body: ScanTriggerRequest | None = None):
             f"Poll /api/scanner/status?job_id={job_id} for progress."
         ),
     )
+
+
+# ---------------------------------------------------------------------------
+# POST /api/scanner/stop
+# ---------------------------------------------------------------------------
+
+@router.post("/stop", dependencies=[Depends(require_admin)])
+def stop_scan_endpoint(request: Request):
+    """Signal the currently running scan to stop at its next checkpoint.
+
+    Returns immediately; the scan thread will detect the stop signal and mark
+    the job as STOPPED in the database.  Has no effect if no scan is running.
+    """
+    from src.scanner.orchestrator import stop_scan
+    stop_scan()
+    return {"message": "Stop signal sent. The scan will halt at its next checkpoint."}
 
 
 # ---------------------------------------------------------------------------

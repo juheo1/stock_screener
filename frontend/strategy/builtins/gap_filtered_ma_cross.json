@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "name": "gap_filtered_ma_cross",
+  "display_name": "S4 Gap-Filtered MA Cross",
+  "description": "EMA fast/slow crossover with gap-regime filter. Counter-gap crossovers require N consecutive confirmation bars. Best 4-hour bar compatibility of all six strategies.",
+  "timeframe": "intraday",
+  "strategy_id": "S4",
+  "regime": "small_gap_any",
+  "default_params": {
+    "ema_fast": 8,
+    "ema_slow": 34,
+    "counter_gap_bars": 2,
+    "stop_atr_mult": 0.35,
+    "gap_regime_z": 1.0,
+    "partial_tp_r": 1.5,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5
+  }
+}

@@ -723,46 +723,54 @@ Combined: Tier 1 validates regime structure. Tier 2 calibrates execution.
 ## 14. Implementation Phases
 
 ### Phase 1: Data Infrastructure & Common Utilities
-- [ ] Gap decomposition module (total gap, z-score, 3-component decomposition)
-- [ ] Overnight volatility estimator (Yang-Zhang, rolling close-to-open σ)
-- [ ] Premarket RVOL calculator
-- [ ] Session-aware VWAP computation (reset at 09:30)
-- [ ] ATR computation (14-day daily)
-- [ ] Position sizing engine (risk-based, with gap-size scaling)
-- [ ] Daily risk limit tracker
-- [ ] Time-of-day cost multiplier
+- [x] Gap decomposition module (total gap, z-score, 3-component decomposition)
+- [x] Overnight volatility estimator (Yang-Zhang, rolling close-to-open σ)
+- [x] Premarket RVOL calculator
+- [x] Session-aware VWAP computation (reset at 09:30)
+- [x] ATR computation (14-day daily)
+- [x] Position sizing engine (risk-based, with gap-size scaling)
+- [x] Daily risk limit tracker
+- [x] Time-of-day cost multiplier
+  → `frontend/strategy/gap_utils.py`, `frontend/strategy/gap_risk.py`
 
 ### Phase 2: Strategy Engines (one module per strategy)
-- [ ] S1: `extreme_gap_fade.py`
-- [ ] S2: `opening_range_breakout.py`
-- [ ] S3: `opening_drive_momentum.py`
-- [ ] S4: `gap_filtered_ma_cross.py`
-- [ ] S5: `vwap_pullback.py`
-- [ ] S6: `gap_continuation_hybrid.py`
-- [ ] Regime-switching meta-rule dispatcher
+- [x] S1: `extreme_gap_fade.py`
+- [x] S2: `opening_range_breakout.py`
+- [x] S3: `opening_drive_momentum.py`
+- [x] S4: `gap_filtered_ma_cross.py`
+- [x] S5: `vwap_pullback.py`
+- [x] S6: `gap_continuation_hybrid.py`
+- [x] Regime-switching meta-rule dispatcher (`gap_dispatcher.py`)
+  → All in `frontend/strategy/builtins/` with matching `.json` sidecar files
 
 ### Phase 3: Backtesting Framework
-- [ ] Walk-forward engine (36/6/6 rolling windows)
-- [ ] Scenario-based 4h bar simulator (Brownian bridge)
-- [ ] Performance metrics calculator (all metrics from Section 12)
-- [ ] Overfitting diagnostics (DSR, PBO, Reality Check)
-- [ ] Transaction cost model with time-of-day multipliers
+- [x] Walk-forward engine (36/6/6 rolling windows)
+- [x] Scenario-based 4h bar simulator (Brownian bridge)
+- [x] Performance metrics calculator (all metrics from Section 12)
+- [x] Overfitting diagnostics (DSR, PBO, Reality Check)
+- [x] Transaction cost model with time-of-day multipliers
+  → `frontend/strategy/gap_backtest.py`
 
 ### Phase 4: Integration & UI
-- [ ] Scanner integration (gap/RVOL pre-open screener)
-- [ ] Dashboard: daily regime classification display
-- [ ] Dashboard: active strategy signals and P&L tracking
-- [ ] Alert system for pre-market gap detection
+- [x] Scanner integration (gap/RVOL pre-open screener)
+- [x] Dashboard: daily regime classification display
+- [x] Dashboard: active strategy signals and P&L tracking
+- [x] Alert system for pre-market gap detection
+  → `src/api/routers/gap_scanner.py` (GET /api/gap-scanner/scan + /regimes)
+  → `frontend/pages/gap_scanner.py` (Dash page at /gap-scanner)
+  → `frontend/api_client.py` (added `api_get` public helper)
+  → `frontend/app.py` (Gap Scanner added to sidebar nav)
+  → `src/api/main.py` (gap_scanner router registered)
 
 ### Phase 5: Documentation
-- [ ] `docs/05_strategies/gap_daytrading_overview.md` — system-level overview, regime-switching meta-rule, common execution rules
-- [ ] `docs/05_strategies/strategy_extreme_gap_fade.md` — S1 full specification
-- [ ] `docs/05_strategies/strategy_opening_range_breakout.md` — S2 full specification
-- [ ] `docs/05_strategies/strategy_opening_drive_momentum.md` — S3 full specification
-- [ ] `docs/05_strategies/strategy_gap_filtered_ma_cross.md` — S4 full specification
-- [ ] `docs/05_strategies/strategy_vwap_pullback.md` — S5 full specification
-- [ ] `docs/05_strategies/strategy_gap_continuation_hybrid.md` — S6 full specification
-- [ ] `docs/05_strategies/gap_daytrading_backtest_framework.md` — 4h adaptation, walk-forward, cost model, overfitting diagnostics
+- [x] `docs/05_strategies/gap_daytrading_overview.md` — system-level overview, regime-switching meta-rule, common execution rules
+- [x] `docs/05_strategies/strategy_extreme_gap_fade.md` — S1 full specification
+- [x] `docs/05_strategies/strategy_opening_range_breakout.md` — S2 full specification
+- [x] `docs/05_strategies/strategy_opening_drive_momentum.md` — S3 full specification
+- [x] `docs/05_strategies/strategy_gap_filtered_ma_cross.md` — S4 full specification
+- [x] `docs/05_strategies/strategy_vwap_pullback.md` — S5 full specification
+- [x] `docs/05_strategies/strategy_gap_continuation_hybrid.md` — S6 full specification
+- [x] `docs/05_strategies/gap_daytrading_backtest_framework.md` — 4h adaptation, walk-forward, cost model, overfitting diagnostics
 
 ---
 

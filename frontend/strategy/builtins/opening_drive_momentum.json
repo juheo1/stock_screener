@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "name": "opening_drive_momentum",
+  "display_name": "S3 Opening Drive Momentum",
+  "description": "Enter at ~10:00 ET when the first 30-minute standardized return exceeds the threshold, confirmed by above-average volume and price above VWAP. Gap compatibility filter prevents counter-trend entries on extreme-gap days.",
+  "timeframe": "intraday",
+  "strategy_id": "S3",
+  "regime": "any_gap_30min_momentum",
+  "default_params": {
+    "m30_threshold": 0.9,
+    "rvol_30_threshold": 1.2,
+    "stop_atr_mult": 0.35,
+    "stop_or30_mult": 0.50,
+    "partial_tp_r": 1.25,
+    "gap_compat_z": 1.5,
+    "or30_minutes": 30,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5,
+    "m30_std_lookback": 20
+  }
+}

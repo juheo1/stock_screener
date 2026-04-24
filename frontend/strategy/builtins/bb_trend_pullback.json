@@ -3,5 +3,6 @@
   "name": "bb_trend_pullback",
   "display_name": "BB Trend-Filtered Pullback",
   "description": "Enters long on pullbacks into the Lower Green Band with hammer rejection during strong uptrends. Enters short on bounces into the Upper Red Band with shooting-star rejection during strong downtrends. Dynamic ratcheting SL/TP management.",
+  "timeframe": "daily",
   "chart_bundle": "preset"
 }

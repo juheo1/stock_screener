@@ -113,6 +113,7 @@ def run_daily_scan() -> None:
             scan_date=today,
             trigger_type="scheduled",
             etf_tickers=etf_tickers,
+            timeframe="daily",
         )
         logger.info("[Scheduler] Daily scan completed. Job ID: %d", job_id)
     except RuntimeError as exc:
@@ -212,6 +213,13 @@ def start_scheduler() -> None:
         id="sentiment_news_refresh",
         replace_existing=True,
     )
+
+    # Register OHLCV cache sync jobs
+    try:
+        from src.ohlcv.scheduler import register_ohlcv_jobs
+        register_ohlcv_jobs(scheduler)
+    except Exception as exc:
+        logger.warning("[Scheduler] Could not register OHLCV jobs: %s", exc)
 
     scheduler.start()
     logger.info(

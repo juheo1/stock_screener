@@ -477,6 +477,7 @@ class ScanTriggerRequest(BaseModel):
     strategy_slugs: list[str] | None = None  # None = all built-in strategies
     etf_tickers: list[str] | None = None     # None = default ETF universe
     force: bool = False                       # True = recompute even if completed scan exists
+    timeframe: str = "daily"                  # "daily" | "intraday" | "all"
 
 
 class ScanTriggerResponse(BaseModel):

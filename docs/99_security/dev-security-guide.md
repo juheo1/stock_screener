@@ -143,12 +143,12 @@ Rate limits are enforced on all endpoints via `slowapi`:
 
 | Scope | Limit |
 |-------|-------|
-| Global default | 120 requests/minute per IP |
-| `POST /admin/fetch` | 5/minute |
-| `POST /admin/compute` | 3/minute |
-| `POST /admin/classify` | 3/minute |
-| `DELETE /admin/ticker/{sym}` | 10/minute |
-| `POST /api/scanner/trigger` | 3/minute |
+| Global default | 600 requests/minute per IP |
+| `POST /admin/fetch` | 60/minute |
+| `POST /admin/compute` | 60/minute |
+| `POST /admin/classify` | 60/minute |
+| `DELETE /admin/ticker/{sym}` | 60/minute |
+| `POST /api/scanner/trigger` | 60/minute |
 
 Exceeding a limit returns `429 Too Many Requests`.
 

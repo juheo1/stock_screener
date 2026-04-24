@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "name": "gap_continuation_hybrid",
+  "display_name": "S6 Gap Continuation Hybrid",
+  "description": "Ride large news-driven gaps (RVOL >= 2x) that show OR-bar confirmation and a limited pullback. Opposite of S1: high-RVOL gaps tend to continue. Disable if premarket volume data is unavailable.",
+  "timeframe": "intraday",
+  "strategy_id": "S6",
+  "regime": "high_rvol_large_gap",
+  "default_params": {
+    "gap_z_threshold": 1.0,
+    "rvol_threshold": 2.0,
+    "max_pullback_pct": 0.35,
+    "stop_atr_mult": 0.45,
+    "partial_tp_r": 2.0,
+    "or_length_minutes": 15,
+    "gap_z_lookback": 20,
+    "atr_period": 14,
+    "bar_interval_minutes": 5
+  }
+}

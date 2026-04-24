@@ -39,6 +39,7 @@ STATUS_RUNNING   = "RUNNING"
 STATUS_COMPLETED = "COMPLETED"
 STATUS_FAILED    = "FAILED"
 STATUS_SKIPPED   = "SKIPPED"   # existing completed scan returned without re-running
+STATUS_STOPPED   = "STOPPED"   # scan cancelled by user
 
 TRIGGER_SCHEDULED = "scheduled"
 TRIGGER_MANUAL    = "manual"
@@ -167,3 +168,42 @@ class ScanBacktest(Base):
     beat_spy            = Column(Integer)   # 0 or 1
     avg_return_pct      = Column(Float)
     created_at          = Column(DateTime, server_default=func.now())
+
+
+class IntradaySignal(Base):
+    """One row per intraday signal emitted by the IntradayMonitor.
+
+    Columns
+    -------
+    id              Surrogate primary key.
+    signal_time     Bar timestamp (datetime with minute precision).
+    ticker          Ticker symbol.
+    strategy_slug   Strategy identifier slug.
+    interval        Bar interval: "1MIN", "5MIN".
+    signal_type     1 = BUY, -1 = SELL.
+    close_price     Close price of the signalling bar.
+    bar_open        Bar open price.
+    bar_high        Bar high price.
+    bar_low         Bar low price.
+    bar_volume      Bar volume.
+    created_at      Row creation timestamp.
+    """
+
+    __tablename__ = "intraday_signals"
+    __table_args__ = (
+        Index("ix_intraday_signals_time",   "signal_time"),
+        Index("ix_intraday_signals_ticker", "ticker", "strategy_slug"),
+    )
+
+    id            = Column(Integer, primary_key=True, autoincrement=True)
+    signal_time   = Column(DateTime, nullable=False)
+    ticker        = Column(Text, nullable=False)
+    strategy_slug = Column(Text, nullable=False)
+    interval      = Column(Text, nullable=False)
+    signal_type   = Column(Integer, nullable=False)  # 1 or -1
+    close_price   = Column(Float)
+    bar_open      = Column(Float)
+    bar_high      = Column(Float)
+    bar_low       = Column(Float)
+    bar_volume    = Column(Integer)
+    created_at    = Column(DateTime, server_default=func.now())

@@ -29,6 +29,7 @@ from frontend.api_client import (
     scanner_get_backtest,
     scanner_get_results,
     scanner_get_status,
+    scanner_stop,
     scanner_trigger,
 )
 from frontend.strategy.engine import (
@@ -106,8 +107,10 @@ _SIGNAL_COLS = [
 # ---------------------------------------------------------------------------
 
 def layout() -> html.Div:
-    strategies = _get_strategy_options()
-    default_selected = [s["value"] for s in strategies if s.get("builtin", False)]
+    all_strategies = _get_strategy_options()
+    daily_strategies = [s for s in all_strategies if s.get("timeframe", "daily") == "daily"]
+    _DEFAULT_ON = {"ma_crossover", "mean_reversion"}
+    default_selected = [s["value"] for s in daily_strategies if s["value"] in _DEFAULT_ON]
 
     return html.Div(
         style={"backgroundColor": _BG, "minHeight": "100vh", "padding": "16px",
@@ -118,16 +121,25 @@ def layout() -> html.Div:
             dcc.Store(id="scanner-results-store"),
             dcc.Store(id="scanner-selected-row-store"),
             dcc.Store(id="scanner-active-job-store"),   # job_id currently being polled
+            dcc.Store(id="scanner-all-strategies-store",
+                      data=all_strategies),             # full strategy list for filtering
             dcc.Interval(id="scanner-poll-interval", interval=5000, n_intervals=0,
                          disabled=True),
 
-            # ── Confirmation dialog ──────────────────────────────────
+            # ── Confirmation dialogs ─────────────────────────────────
             dcc.ConfirmDialog(
                 id="scanner-confirm-dialog",
                 message=(
                     "This will delete existing results for today and run a full "
                     "recompute across all tickers and strategies.\n\n"
                     "This may take several minutes. Continue?"
+                ),
+            ),
+            dcc.ConfirmDialog(
+                id="scanner-stop-dialog",
+                message=(
+                    "This will stop any currently running scan operation.\n\n"
+                    "Partial results will NOT be saved. Continue?"
                 ),
             ),
 
@@ -140,12 +152,30 @@ def layout() -> html.Div:
             # ── Controls card ────────────────────────────────────────
             html.Div(style=_card_style, children=[
                 dbc.Row([
-                    # Strategy checklist
+                    # Strategy type selector + checklist
                     dbc.Col([
+                        dbc.Row([
+                            dbc.Col([
+                                html.Div("STRATEGY TYPE", style=_section_hdr),
+                                dbc.RadioItems(
+                                    id="scanner-timeframe-radio",
+                                    options=[
+                                        {"label": "Daily",    "value": "daily"},
+                                        {"label": "Intraday", "value": "intraday"},
+                                        {"label": "All",      "value": "all"},
+                                    ],
+                                    value="daily",
+                                    inline=True,
+                                    labelStyle={"marginRight": "14px", "color": _TEXT,
+                                                "fontSize": "0.85rem"},
+                                    inputStyle={"marginRight": "4px"},
+                                ),
+                            ], width="auto"),
+                        ], className="mb-2"),
                         html.Div("STRATEGIES", style=_section_hdr),
                         dbc.Checklist(
                             id="scanner-strategy-checklist",
-                            options=strategies,
+                            options=daily_strategies,
                             value=default_selected,
                             inline=True,
                             labelStyle={"marginRight": "14px", "color": _TEXT,
@@ -169,6 +199,11 @@ def layout() -> html.Div:
                                 [html.I(className="bi-arrow-clockwise me-1"), "Refresh"],
                                 id="scanner-refresh-btn",
                                 color="secondary", size="sm",
+                            ),
+                            dbc.Button(
+                                [html.I(className="bi-stop-circle me-1"), "Stop"],
+                                id="scanner-stop-btn",
+                                color="danger", size="sm",
                             ),
                         ]),
                         html.Div(id="scanner-trigger-feedback",
@@ -495,6 +530,7 @@ def _status_badge(status: str | None) -> html.Span:
         "PENDING":   "#ffcc00",
         "FAILED":    _RED,
         "SKIPPED":   _ACCENT,
+        "STOPPED":   "#ff9100",
     }
     color = color_map.get(status or "", _MUTED)
     return html.Span(
@@ -648,6 +684,29 @@ def clear_filters(_n):
     return None, None, None, None, None
 
 
+# ── Timeframe radio → update strategy checklist options ──────────────────
+
+@callback(
+    Output("scanner-strategy-checklist", "options"),
+    Output("scanner-strategy-checklist", "value"),
+    Input("scanner-timeframe-radio", "value"),
+    State("scanner-all-strategies-store", "data"),
+    State("scanner-strategy-checklist", "value"),
+    prevent_initial_call=True,
+)
+def update_checklist_for_timeframe(timeframe, all_strats, current_selected):
+    if not all_strats:
+        return [], []
+    if timeframe == "all":
+        filtered = all_strats
+    else:
+        filtered = [s for s in all_strats if s.get("timeframe", "daily") == timeframe]
+    available = {s["value"] for s in filtered}
+    # Keep currently selected strategies that are still in the filtered list
+    new_selected = [v for v in (current_selected or []) if v in available]
+    return filtered, new_selected
+
+
 # ── Manual scan trigger ───────────────────────────────────────────────────
 # Step 1: Button click → open confirmation dialog
 
@@ -668,13 +727,18 @@ def open_confirm_dialog(n_clicks):
     Output("scanner-active-job-store", "data"),
     Input("scanner-confirm-dialog",    "submit_n_clicks"),
     State("scanner-strategy-checklist", "value"),
+    State("scanner-timeframe-radio",    "value"),
     prevent_initial_call=True,
 )
-def execute_forced_scan(submit_n_clicks, selected_strategies):
+def execute_forced_scan(submit_n_clicks, selected_strategies, timeframe):
     if not submit_n_clicks:
         return no_update, no_update, no_update
 
-    result = scanner_trigger(strategy_slugs=selected_strategies or None, force=True)
+    result = scanner_trigger(
+        strategy_slugs=selected_strategies or None,
+        force=True,
+        timeframe=timeframe or "daily",
+    )
 
     if result is None:
         return (
@@ -693,6 +757,40 @@ def execute_forced_scan(submit_n_clicks, selected_strategies):
         ),
         False,   # enable polling
         job_id,  # store job_id so load_scan_data polls the right job
+    )
+
+
+# ── Stop scan ────────────────────────────────────────────────────────────
+# Step 1: Stop button → open confirmation dialog
+
+@callback(
+    Output("scanner-stop-dialog", "displayed"),
+    Input("scanner-stop-btn", "n_clicks"),
+    prevent_initial_call=True,
+)
+def open_stop_dialog(n_clicks):
+    return bool(n_clicks)
+
+
+# Step 2: Dialog confirmed → call stop API
+
+@callback(
+    Output("scanner-trigger-feedback", "children", allow_duplicate=True),
+    Input("scanner-stop-dialog", "submit_n_clicks"),
+    prevent_initial_call=True,
+)
+def execute_stop(submit_n_clicks):
+    if not submit_n_clicks:
+        return no_update
+
+    result = scanner_stop()
+    if result is None:
+        return html.Span("Could not send stop signal — is the API running?",
+                         style={"color": _RED})
+
+    return html.Span(
+        result.get("message", "Stop signal sent."),
+        style={"color": "#ff9100"},
     )
 
 

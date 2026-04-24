@@ -45,6 +45,15 @@ HTTPS, and subscription logic before it can accept public sign-ups.
 
 ---
 
+## Related documents
+
+- **`ohlcv-server-mode.md`** — Separate plan for centralising OHLCV data
+  storage and the intraday monitor on a dedicated server. This is an
+  independent infrastructure concern that can be deployed before or after
+  the user-auth system described here.
+
+---
+
 ## 2. Infrastructure requirements
 
 ### Minimum production stack

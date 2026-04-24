@@ -60,7 +60,12 @@ _IND_COLOR_POOL = [
 # ---------------------------------------------------------------------------
 
 def fetch_ohlcv(ticker: str, interval_key: str) -> pd.DataFrame | None:
-    """Fetch OHLCV data from yfinance for a given ticker and interval key.
+    """Fetch OHLCV data, preferring the local Parquet cache for daily bars.
+
+    Cache-first logic:
+    - ``"1D"``: read from ``OHLCVStore``; fall back to live fetch if missing or stale.
+    - Intraday intervals: read from intraday archive if available, else live fetch.
+    - All other intervals: live fetch (unchanged behaviour).
 
     Parameters
     ----------
@@ -73,6 +78,71 @@ def fetch_ohlcv(ticker: str, interval_key: str) -> pd.DataFrame | None:
     -------
     pd.DataFrame with columns Open/High/Low/Close/Volume, or ``None`` on failure.
     """
+    # ── Cache-first path ────────────────────────────────────────────────────
+    if interval_key == "1D":
+        cached = _read_daily_cache(ticker)
+        if cached is not None:
+            return cached
+
+    elif interval_key in ("1MIN", "5MIN"):
+        cached = _read_intraday_cache(ticker, interval_key)
+        if cached is not None:
+            return cached
+
+    # ── Live fetch fallback ─────────────────────────────────────────────────
+    return _live_fetch(ticker, interval_key)
+
+
+def _read_daily_cache(ticker: str) -> pd.DataFrame | None:
+    """Try to read today's daily bars from the Parquet store."""
+    try:
+        from src.ohlcv.store import OHLCVStore
+        from src.config import settings
+        from datetime import datetime, timedelta
+
+        store = OHLCVStore(settings.ohlcv_dir)
+        df    = store.read_daily(ticker)
+        if df is None or df.empty:
+            return None
+
+        # Only use the cache if it was synced recently enough
+        last_updated = store.get_last_updated(ticker, "daily")
+        if last_updated is None:
+            return None
+        age_hours = (datetime.utcnow() - last_updated).total_seconds() / 3600
+        if age_hours > settings.ohlcv_daily_stale_hours:
+            return None
+
+        return df
+    except Exception:
+        return None
+
+
+def _read_intraday_cache(ticker: str, interval_key: str) -> pd.DataFrame | None:
+    """Try to read archived intraday bars from the Parquet store."""
+    try:
+        from src.ohlcv.store import OHLCVStore
+        from src.config import settings
+        from datetime import date, timedelta
+
+        interval_map = {"1MIN": "1min", "5MIN": "5min"}
+        interval = interval_map.get(interval_key)
+        if interval is None:
+            return None
+
+        store = OHLCVStore(settings.ohlcv_dir)
+        end   = date.today()
+        start = end - timedelta(days=60)
+        df = store.read_intraday_range(ticker, interval, start, end)
+        if df is not None and not df.empty:
+            return df
+    except Exception:
+        pass
+    return None
+
+
+def _live_fetch(ticker: str, interval_key: str) -> pd.DataFrame | None:
+    """Original yfinance live fetch (fallback)."""
     import yfinance as yf
 
     cfg = INTERVAL_CFG.get(interval_key, INTERVAL_CFG["1D"])

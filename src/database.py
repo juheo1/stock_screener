@@ -123,7 +123,7 @@ def init_db() -> None:
     """
     # Import models so that SQLAlchemy registers them with Base.metadata
     import src.models                # noqa: F401
-    import src.scanner.models        # noqa: F401  (scanner tables)
+    import src.scanner.models        # noqa: F401  (scanner tables + IntradaySignal)
     import src.trade_tracker.models  # noqa: F401  (trade tracking table)
 
     Base.metadata.create_all(bind=engine)

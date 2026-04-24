@@ -51,6 +51,19 @@ def _get(path: str, params: dict | None = None) -> Any:
         return None
 
 
+def api_get(path: str, params: dict | None = None, timeout: int = _TIMEOUT) -> Any:
+    """
+    Public GET helper that raises on error (for callers that catch exceptions).
+
+    Use this when the caller handles failures explicitly (e.g. gap_scanner page).
+    For fire-and-forget UI calls that return None on failure, use ``_get``.
+    """
+    url = f"{API_BASE_URL}{path}"
+    resp = requests.get(url, params=params, timeout=timeout)
+    resp.raise_for_status()
+    return resp.json()
+
+
 def _post(path: str, body: dict, timeout: int = _TIMEOUT) -> Any:
     """Make a POST request to the API.
 
@@ -621,6 +634,7 @@ def scanner_trigger(
     strategy_slugs: list[str] | None = None,
     etf_tickers: list[str] | None = None,
     force: bool = False,
+    timeframe: str = "daily",
 ) -> dict | None:
     """Manually trigger a daily strategy scan.
 
@@ -629,10 +643,12 @@ def scanner_trigger(
     force:
         When ``True``, forces a full recompute even if a completed scan already
         exists for today.  The existing results are replaced.
+    timeframe:
+        ``"daily"`` (default), ``"intraday"``, or ``"all"``.
 
     Returns ``None`` if the request fails (e.g. a scan is already running).
     """
-    payload: dict = {}
+    payload: dict = {"timeframe": timeframe}
     if strategy_slugs is not None:
         payload["strategy_slugs"] = strategy_slugs
     if etf_tickers is not None:
@@ -657,6 +673,11 @@ def scanner_get_backtest(
 def scanner_get_universe() -> dict | None:
     """Return the current universe snapshot (cached or freshly resolved)."""
     return _get("/api/scanner/universe")
+
+
+def scanner_stop() -> dict | None:
+    """Send a stop signal to any currently running scan."""
+    return _post("/api/scanner/stop", {})
 
 
 # ---------------------------------------------------------------------------

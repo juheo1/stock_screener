@@ -7,9 +7,19 @@ Application settings loaded from the environment / .env file.
 from __future__ import annotations
 
 import secrets
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Anchor all relative paths to the project root (parent of src/)
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+
+def _default_db_url() -> str:
+    """Return an absolute SQLite URL anchored to the project root."""
+    db_path = _PROJECT_ROOT / "data" / "stock_screener.db"
+    return f"sqlite:///{db_path}"
 
 
 class Settings(BaseSettings):
@@ -67,7 +77,7 @@ class Settings(BaseSettings):
     newsapi_key: str = ""
     finnhub_api_key: str = ""
     alphavantage_api_key: str = ""
-    database_url: str = "sqlite:///./data/stock_screener.db"
+    database_url: str = Field(default_factory=_default_db_url)
 
     # Feature flags (Part 8)
     enable_news_feed: bool = True
@@ -104,6 +114,44 @@ class Settings(BaseSettings):
     scanner_etfs: str = ""          # Comma-separated ETF list; empty = use default
 
     log_level: str = "INFO"
+
+    # ---------------------------------------------------------------------------
+    # OHLCV cache layer
+    # ---------------------------------------------------------------------------
+
+    # Root directory for Parquet OHLCV files
+    ohlcv_dir: str = "data/ohlcv"
+
+    # Re-fetch daily bars if last sync was more than this many hours ago
+    ohlcv_daily_stale_hours: int = 18
+
+    # Comma-separated intraday intervals to archive nightly (e.g. "1min,5min")
+    ohlcv_intraday_intervals: str = "1min,5min"
+
+    # How many days to retain archived intraday files (default: 1 year)
+    ohlcv_intraday_retention_days: int = 365
+
+    # Whether to run the nightly OHLCV sync job automatically
+    ohlcv_sync_after_market_close: bool = True
+
+    # ---------------------------------------------------------------------------
+    # Intraday monitor
+    # ---------------------------------------------------------------------------
+
+    # Seconds between live bar polls
+    intraday_poll_interval: int = 60
+
+    # Watchlist source: "manual" | "auto" | "both"
+    intraday_watchlist_mode: str = "manual"
+
+    # Maximum number of tickers in the intraday watchlist
+    intraday_watchlist_max: int = 50
+
+    # Auto-mode: include tickers with signals within the last N days
+    intraday_auto_signal_window: int = 1
+
+    # How many days to keep intraday signals in the DB
+    intraday_signal_retention_days: int = 7
 
 
 settings = Settings()

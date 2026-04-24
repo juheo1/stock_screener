@@ -15,6 +15,7 @@ Or via the convenience script::
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +53,28 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application startup and shutdown."""
+    # --- startup ---
+    init_db()
+    logger.info("Database initialised.")
+    from src.scheduler import start_scheduler
+    try:
+        start_scheduler()
+    except Exception as exc:
+        logger.error("Scheduler could not start: %s", exc, exc_info=True)
+
+    yield
+
+    # --- shutdown ---
+    from src.scheduler import stop_scheduler
+    try:
+        stop_scheduler()
+    except Exception as exc:
+        logger.error("Scheduler could not stop: %s", exc, exc_info=True)
+
+
 def create_app() -> FastAPI:
     """Build and configure the FastAPI application.
 
@@ -72,6 +95,7 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url=docs_url,
         redoc_url=redoc_url,
+        lifespan=lifespan,
     )
 
     # ---------------------------------------------------------------------------
@@ -107,28 +131,6 @@ def create_app() -> FastAPI:
     app.add_middleware(SecurityHeadersMiddleware)
 
     # ---------------------------------------------------------------------------
-    # Lifecycle
-    # ---------------------------------------------------------------------------
-
-    @app.on_event("startup")
-    def on_startup():
-        init_db()
-        logger.info("Database initialised.")
-        try:
-            from src.scheduler import start_scheduler
-            start_scheduler()
-        except Exception as exc:
-            logger.warning("Scheduler could not start: %s", exc)
-
-    @app.on_event("shutdown")
-    def on_shutdown():
-        try:
-            from src.scheduler import stop_scheduler
-            stop_scheduler()
-        except Exception:
-            pass
-
-    # ---------------------------------------------------------------------------
     # Routers
     # ---------------------------------------------------------------------------
     from src.api.routers import (
@@ -138,7 +140,9 @@ def create_app() -> FastAPI:
         dashboard,
         disasters,
         etf,
+        gap_scanner,
         geopolitical,
+        intraday,
         liquidity,
         macro,
         metals,
@@ -166,6 +170,8 @@ def create_app() -> FastAPI:
     app.include_router(geopolitical.router)
     app.include_router(calendar.router)
     app.include_router(scanner.router)
+    app.include_router(gap_scanner.router)
+    app.include_router(intraday.router)
     app.include_router(trades.router)
     app.include_router(admin.router)
 

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "name": "mean_reversion",
+  "display_name": "Mean Reversion",
+  "description": "Mean reversion strategy: enters long when price is oversold relative to a moving average, exits when price reverts to the mean.",
+  "timeframe": "daily"
+}
