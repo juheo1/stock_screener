@@ -43,6 +43,12 @@ from frontend.strategy.data import (
     compute_indicator as _compute_indicator,
     get_fb_curve as _get_fb_curve,
 )
+from frontend.components.period_selector import (
+    DAILY_PLUS_INTERVALS as _DAILY_PLUS_IVLS,
+    period_selector_row as _period_selector_row,
+    slice_df_by_period as _slice_df_by_period,
+    PERIOD_OPTIONS as _PERIOD_OPTIONS,
+)
 
 # ---------------------------------------------------------------------------
 # Preset directory (server-side filesystem)
@@ -1260,6 +1266,7 @@ layout = html.Div([
     dcc.Store(id="tech-fill-between-store", data=[]),
     dcc.Store(id="tech-strategy-store",     data=None),
     dcc.Download(id="tech-preset-download"),
+    # Period selector store lives inside _period_selector_row layout below.
 
     # ── Ticker + interval row ─────────────────────────────────────────
     dbc.Row([
@@ -1439,6 +1446,9 @@ layout = html.Div([
         "backgroundColor": "#0a0a0a", "border": "1px solid #1e1e1e",
         "borderRadius": "4px", "flexWrap": "wrap", "gap": "6px", "rowGap": "6px",
     }),
+
+    # ── Period selector (daily+ only) ─────────────────────────────────
+    _period_selector_row("tech"),
 
     # ── New Strategy Modal ────────────────────────────────────────────
     dbc.Modal([
@@ -1635,6 +1645,46 @@ def _highlight_iv(active: str):
 
 
 @callback(
+    Output("tech-period-store", "data"),
+    [Input({"type": "tech-period-btn", "index": p[1]}, "n_clicks") for p in _PERIOD_OPTIONS],
+    prevent_initial_call=True,
+)
+def _set_period(*_):
+    triggered = ctx.triggered_id
+    if isinstance(triggered, dict):
+        return triggered.get("index", "1y")
+    return "1y"
+
+
+@callback(
+    [Output({"type": "tech-period-btn", "index": p[1]}, "outline") for p in _PERIOD_OPTIONS],
+    [Output({"type": "tech-period-btn", "index": p[1]}, "color")   for p in _PERIOD_OPTIONS],
+    Input("tech-period-store", "data"),
+)
+def _highlight_period(active: str):
+    active = active or "1y"
+    outlines = [p[1] != active for p in _PERIOD_OPTIONS]
+    colors   = ["primary" if p[1] == active else "secondary" for p in _PERIOD_OPTIONS]
+    return outlines + colors
+
+
+@callback(
+    Output("tech-period-row", "style"),
+    Input("tech-active-interval", "data"),
+)
+def _toggle_period_row(interval_key: str):
+    _base = {
+        "display": "flex", "alignItems": "center",
+        "padding": "6px 14px", "marginBottom": "10px",
+        "backgroundColor": "#0a0a0a", "border": "1px solid #1e1e1e",
+        "borderRadius": "4px", "flexWrap": "wrap", "gap": "6px",
+    }
+    if (interval_key or _DEFAULT_IV) in _DAILY_PLUS_IVLS:
+        return _base
+    return {**_base, "display": "none"}
+
+
+@callback(
     Output("tech-add-modal", "is_open"),
     Input("tech-add-ind-btn", "n_clicks"),
     prevent_initial_call=True,
@@ -1799,13 +1849,18 @@ def _cancel_config(n):
     Input("tech-load-btn",           "n_clicks"),
     Input("tech-fill-between-store", "data"),
     Input("tech-strategy-store",     "data"),
+    Input("tech-period-store",       "data"),
 )
-def _update_chart(ticker, interval_key, indicators, _load, fill_betweens, strategy_store):
+def _update_chart(ticker, interval_key, indicators, _load, fill_betweens, strategy_store,
+                  period):
     ticker       = (ticker or "AAPL").strip().upper()
     interval_key = interval_key or _DEFAULT_IV
     indicators   = indicators or []
+    period       = period or "1y"
 
     df = _fetch_ohlcv(ticker, interval_key)
+    if df is not None and interval_key in _DAILY_PLUS_IVLS:
+        df = _slice_df_by_period(df, period)
     if df is None or df.empty:
         empty = go.Figure()
         empty.update_layout(

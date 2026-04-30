@@ -124,6 +124,7 @@ stock_screener/
 ├── scripts/                     # CLI entry points
 │   ├── fetch_data.py            # Fetch statements + compute + classify
 │   ├── compute_metrics.py       # Recompute metrics + classify
+│   ├── force_full_refresh.py    # Force max-history OHLCV re-download for all tickers
 │   └── run_server.py            # Launch FastAPI + Dash together
 │
 ├── lib/                         # External code / vendored libraries
@@ -220,6 +221,33 @@ python scripts/run_server.py --api-only --reload
 # Frontend only
 python scripts/run_server.py --frontend-only
 ```
+
+### OHLCV data management
+
+Daily OHLCV bars are stored as Parquet files under `data/ohlcv/daily/` and
+refreshed automatically each night by the scheduler. yfinance is queried for
+the **full available history** (typically 20+ years) on first fetch, then
+incrementally thereafter.
+
+**Force a full max-history re-download for all universe tickers:**
+
+```bash
+python scripts/force_full_refresh.py
+```
+
+This merges the freshly downloaded history with any data already on disk, so
+no existing bars are lost. Use this after adding new tickers, or if local data
+becomes stale (e.g. after a long offline period).
+
+**How the cache works:**
+
+| Condition | Action |
+|-----------|--------|
+| No local file, or last bar > 5 days old | Full max-history fetch from yfinance |
+| Last bar ≤ 5 days old | Incremental 5-day fetch, merged into existing file |
+| Last sync < 18 hours ago | Skipped entirely |
+
+The `stale_hours` and gap threshold are configurable in `src/ohlcv/fetcher.py`.
 
 ---
 

@@ -178,12 +178,16 @@ At 400 tickers, expected disk usage on the data server:
 
 | Data type | Size |
 |-----------|------|
-| Daily (2yr, 400 tickers) | ~20 MB |
+| Daily (max history, 400 tickers) | ~150 MB (20+ years per ticker) |
 | 1min archive (1yr, 400 tickers) | ~2 GB |
 | 5min archive (1yr, 400 tickers) | ~480 MB |
-| **Total** | **~2.5 GB** |
+| **Total** | **~2.6 GB** |
 
 At 2 000 tickers: ~13 GB. A $6/mo VPS with 25 GB SSD handles this easily.
+
+> **Note**: Daily bars are fetched with `period="max"` (full yfinance history).
+> The first full-refresh run will be slower than previous 2-year fetches but
+> subsequent nightly syncs remain fast (incremental 5-day delta).
 
 For S3/R2 storage: ~$0.05/GB/month, so full archive = ~$0.65/month plus
 per-request costs (negligible for read patterns here).

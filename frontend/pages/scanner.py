@@ -48,6 +48,11 @@ from frontend.strategy.data import (
     get_source,
 )
 from frontend.strategy.chart import build_figure
+from frontend.components.period_selector import (
+    period_selector_row as _period_selector_row,
+    slice_df_by_period as _slice_df_by_period,
+    PERIOD_OPTIONS as _PERIOD_OPTIONS,
+)
 
 dash.register_page(
     __name__,
@@ -123,6 +128,7 @@ def layout() -> html.Div:
             dcc.Store(id="scanner-active-job-store"),   # job_id currently being polled
             dcc.Store(id="scanner-all-strategies-store",
                       data=all_strategies),             # full strategy list for filtering
+            # scanner-period-store lives inside the period selector row below
             dcc.Interval(id="scanner-poll-interval", interval=5000, n_intervals=0,
                          disabled=True),
 
@@ -357,6 +363,7 @@ def layout() -> html.Div:
                 style={"display": "none"},
                 children=[
                     html.Hr(style={"borderColor": _BORDER, "margin": "16px 0"}),
+                    _period_selector_row("scanner"),
                     dbc.Row([
                         # Chart
                         dbc.Col([
@@ -836,9 +843,10 @@ def capture_selected_row(tb, ts, pb, ps):
     Output("scanner-track-btn",               "disabled"),
     Output("scanner-track-feedback",          "children"),
     Input("scanner-selected-row-store", "data"),
+    Input("scanner-period-store",       "data"),
     prevent_initial_call=True,
 )
-def render_drilldown(row):
+def render_drilldown(row, period):
     """Render chart + signal info + backtest card for the selected row."""
     if not row:
         return {"display": "none"}, go.Figure(), [], [], "Track This Signal", False, ""
@@ -850,8 +858,12 @@ def render_drilldown(row):
     if not ticker or not strategy:
         return {"display": "none"}, go.Figure(), [], [], "Track This Signal", False, ""
 
+    period = period or "1y"
+
     # ── Fetch OHLCV ─────────────────────────────────────────────────
     df = fetch_ohlcv(ticker, "1D")
+    if df is not None and not df.empty:
+        df = _slice_df_by_period(df, period)
     if df is None or df.empty:
         error_fig = _empty_fig(f"Could not fetch data for {ticker}")
         return {"display": "block"}, error_fig, _error_card("No data"), [], "Track This Signal", False, ""
@@ -964,6 +976,8 @@ def render_drilldown(row):
         spy_df = None
         try:
             spy_df = fetch_ohlcv("SPY", "1D")
+            if spy_df is not None and not spy_df.empty:
+                spy_df = _slice_df_by_period(spy_df, period)
         except Exception:
             pass
         bt = run_backtest(df, signals_series, spy_df=spy_df)
@@ -1070,6 +1084,35 @@ def track_signal(n_clicks, row, results):
         style={"color": "#00c896"},
     )
     return feedback, "Already Tracked", True
+
+
+# ---------------------------------------------------------------------------
+# Period selector callbacks
+# ---------------------------------------------------------------------------
+
+@callback(
+    Output("scanner-period-store", "data"),
+    [Input({"type": "scanner-period-btn", "index": p[1]}, "n_clicks")
+     for p in _PERIOD_OPTIONS],
+    prevent_initial_call=True,
+)
+def _scanner_set_period(*_):
+    triggered = dash.ctx.triggered_id
+    if isinstance(triggered, dict):
+        return triggered.get("index", "1y")
+    return "1y"
+
+
+@callback(
+    [Output({"type": "scanner-period-btn", "index": p[1]}, "outline") for p in _PERIOD_OPTIONS],
+    [Output({"type": "scanner-period-btn", "index": p[1]}, "color")   for p in _PERIOD_OPTIONS],
+    Input("scanner-period-store", "data"),
+)
+def _scanner_highlight_period(active: str):
+    active = active or "1y"
+    outlines = [p[1] != active for p in _PERIOD_OPTIONS]
+    colors   = ["primary" if p[1] == active else "secondary" for p in _PERIOD_OPTIONS]
+    return outlines + colors
 
 
 # ---------------------------------------------------------------------------

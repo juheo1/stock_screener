@@ -39,6 +39,10 @@ _STOP_EVENT = threading.Event()
 # Capped at 8 to avoid excessive context-switching on large machines.
 _MAX_EVAL_WORKERS = max(1, min(8, (os.cpu_count() or 2) // 2))
 
+# Scanner always evaluates strategies on a fixed 2-year window regardless of
+# how much history is stored on disk (which may now be much longer via "max" fetch).
+_SCANNER_OHLCV_WINDOW_YEARS = 2
+
 
 class _ScanStopped(Exception):
     """Raised internally when a user-initiated stop is detected."""
@@ -600,7 +604,9 @@ def _fetch_ohlcv_batch(tickers: list[str]) -> dict[str, Any]:
             len(report.succeeded), len(report.skipped), len(report.failed),
         )
 
-        # Read everything from cache
+        # Read everything from cache, sliced to scanner window
+        import pandas as _pd
+        _cutoff = _pd.Timestamp.now() - _pd.DateOffset(years=_SCANNER_OHLCV_WINDOW_YEARS)
         results: dict[str, Any] = {}
         missing: list[str] = []
         for ticker in tickers:
@@ -608,7 +614,10 @@ def _fetch_ohlcv_batch(tickers: list[str]) -> dict[str, Any]:
                 break
             df = store.read_daily(ticker)
             if df is not None and not df.empty:
-                results[ticker] = df
+                df = df.loc[df.index >= _cutoff]
+                results[ticker] = df if not df.empty else None
+                if results[ticker] is None:
+                    missing.append(ticker)
             else:
                 missing.append(ticker)
                 results[ticker] = None

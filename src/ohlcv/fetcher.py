@@ -23,11 +23,11 @@ from src.ohlcv.store import OHLCVStore
 logger = logging.getLogger(__name__)
 
 # Gap threshold: if last bar is older than this many calendar days,
-# do a full 2-year refresh instead of an incremental delta.
+# do a full max-history refresh instead of an incremental delta.
 _FULL_REFRESH_DAYS = 5
 
 # yfinance fetch constants
-_DAILY_FULL_PERIOD   = "2y"
+_DAILY_FULL_PERIOD   = "max"
 _DAILY_DELTA_PERIOD  = "5d"
 _INTRADAY_1M_PERIOD  = "7d"
 _INTRADAY_5M_PERIOD  = "60d"
@@ -79,7 +79,7 @@ class OHLCVFetcher:
         """Ensure the store has up-to-date daily OHLCV data for all *tickers*.
 
         For each ticker:
-        - If no data or last bar is old (> _FULL_REFRESH_DAYS): full 2y fetch.
+        - If no data or last bar is old (> _FULL_REFRESH_DAYS): full max-history fetch.
         - If last bar is recent: incremental 5-day fetch.
         - If last sync was within stale_hours: skip entirely.
 
@@ -88,7 +88,7 @@ class OHLCVFetcher:
         tickers:
             List of ticker symbols.
         force_full:
-            When True, always fetch the full 2-year history (ignores cache age).
+            When True, always fetch the full max history (ignores cache age).
 
         Returns
         -------
@@ -132,7 +132,9 @@ class OHLCVFetcher:
             for ticker in full_refresh:
                 df = delta.get(ticker)
                 if df is not None and not df.empty:
-                    self.store.write_daily(ticker, df)
+                    existing = self.store.read_daily(ticker)
+                    merged = _merge_ohlcv(existing, df)
+                    self.store.write_daily(ticker, merged)
                     report.succeeded.append(ticker)
                 else:
                     report.failed.append(ticker)

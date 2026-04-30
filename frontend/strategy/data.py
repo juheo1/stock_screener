@@ -40,7 +40,7 @@ INTERVAL_CFG: dict[str, dict] = {
     "2H":    {"yf_interval": "1h",  "yf_period": "60d",  "resample": "2h"},
     "3H":    {"yf_interval": "1h",  "yf_period": "60d",  "resample": "3h"},
     "4H":    {"yf_interval": "1h",  "yf_period": "60d",  "resample": "4h"},
-    "1D":    {"yf_interval": "1d",  "yf_period": "2y",   "resample": None},
+    "1D":    {"yf_interval": "1d",  "yf_period": "max",  "resample": None},
     "1W":    {"yf_interval": "1wk", "yf_period": "5y",   "resample": None},
     "1MON":  {"yf_interval": "1mo", "yf_period": "10y",  "resample": None},
     "3MON":  {"yf_interval": "1mo", "yf_period": "10y",  "resample": "QE"},

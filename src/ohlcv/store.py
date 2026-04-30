@@ -7,7 +7,7 @@ Directory layout::
 
     data/ohlcv/
       daily/
-        AAPL.parquet        # 2 years of 1D bars
+        AAPL.parquet        # max available 1D bars
         MSFT.parquet
       intraday/
         1min/AAPL/2026-04-21.parquet
