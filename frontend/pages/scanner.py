@@ -16,6 +16,7 @@ Layout sections
 from __future__ import annotations
 
 import json
+import sys
 from datetime import date
 
 import dash
@@ -463,6 +464,26 @@ def _collapsible_table(
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _technical_module():
+    """Return the already-imported `technical` page module.
+
+    Dash discovers pages folder and imports each page as ``pages.<name>`` —
+    NOT as ``frontend.pages.<name>`` — so a fresh ``from frontend.pages.technical
+    import X`` inside a callback re-executes ``technical.py`` (because the
+    fully-qualified name isn't cached in ``sys.modules``).  That re-execution
+    runs ``dash.register_page()`` from inside a running callback, which Dash 4
+    rejects with ``PageError``.
+
+    Looking the module up in ``sys.modules`` returns whichever name it was
+    first imported under, avoiding the re-import.
+    """
+    mod = sys.modules.get("pages.technical") or sys.modules.get("frontend.pages.technical")
+    if mod is None:
+        # Fallback for unusual import paths (e.g. tests).
+        from frontend.pages import technical as mod  # type: ignore
+    return mod
+
+
 def _get_strategy_options() -> list[dict]:
     """Build checklist options from the shared strategy registry."""
     try:
@@ -899,7 +920,7 @@ def render_drilldown(row, period):
         # Resolve chart bundle indicators
         bundle = get_chart_bundle(mod)
         if bundle:
-            from frontend.pages.technical import _load_preset  # reuse existing loader
+            _load_preset = _technical_module()._load_preset
             if "preset" in bundle:
                 preset = _load_preset(bundle["preset"])
                 if preset:
@@ -972,7 +993,7 @@ def render_drilldown(row, period):
     # ── Backtest card ─────────────────────────────────────────────────
     if signals_series is not None:
         from frontend.strategy.backtest import run_backtest, backtest_to_dict
-        from frontend.pages.technical import _build_perf_card
+        _build_perf_card = _technical_module()._build_perf_card
         spy_df = None
         try:
             spy_df = fetch_ohlcv("SPY", "1D")

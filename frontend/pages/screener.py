@@ -652,7 +652,7 @@ layout = html.Div([
                 ),
                 dbc.Input(
                     id="screener-search",
-                    placeholder="Search ticker or company name…",
+                    placeholder="Search ticker(s) or company name… e.g. AAPL, MSFT",
                     debounce=False,
                     size="sm",
                     style={"backgroundColor": "#111111", "color": "#ffffff",
@@ -796,19 +796,24 @@ def update_screener(gm, roic, fcf, ic, pe, score, hide_na_val, period_type, sear
     total = meta.get("total", 0)
     period_label = "Quarterly" if period_type == "quarterly" else "Annual"
 
-    # Client-side search filter by ticker or company name
-    if search and search.strip():
-        s = search.strip().lower()
+    # Client-side search filter by ticker or company name.
+    # Supports multiple tokens separated by commas or whitespace; a row matches
+    # if any token appears in its ticker or company name.
+    tokens = [t.strip().lower() for t in (search or "").replace(",", " ").split() if t.strip()]
+    if tokens:
         rows = [
             r for r in rows
-            if s in (r.get("ticker") or "").lower()
-            or s in (r.get("name") or "").lower()
+            if any(
+                tok in (r.get("ticker") or "").lower()
+                or tok in (r.get("name") or "").lower()
+                for tok in tokens
+            )
         ]
 
     shown = len(rows)
     meta_text = f"Showing {shown} of {total:,} stocks  ·  {period_label} view"
-    if search and search.strip() and shown != total:
-        meta_text += f"  ·  filtered by \"{search.strip()}\""
+    if tokens and shown != total:
+        meta_text += f"  ·  filtered by \"{', '.join(tokens)}\""
     return rows, meta_text
 
 
