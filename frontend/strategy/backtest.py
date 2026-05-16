@@ -43,6 +43,10 @@ class BacktestResult:
     data_end_date:       str | None     # "YYYY-MM-DD"
     bar_count:           int
 
+    # --- executed signal events (parallel to input df index) ---
+    # 0=no action, 1=long entry, 2=long exit, -1=short entry, -2=short exit
+    executed_events:     list
+
 
 def run_backtest(
     df: pd.DataFrame,
@@ -79,6 +83,7 @@ def run_backtest(
     bar_count  = len(df)
 
     trades: list[dict] = []
+    executed = [0] * len(df)
     position    = 0
     entry_price = 0.0
     entry_date  = ""
@@ -88,17 +93,20 @@ def run_backtest(
         sig = int(sig)
         if position == 0:
             if sig == 1:
+                executed[i] = 1          # long entry
                 position    = 1
                 entry_price = float(closes[i])
                 entry_date  = dates[i]
                 side        = "long"
             elif sig == -1:
+                executed[i] = -1         # short entry
                 position    = -1
                 entry_price = float(closes[i])
                 entry_date  = dates[i]
                 side        = "short"
         elif position == 1:
             if sig == -1:
+                executed[i] = 2          # long exit
                 exit_price = float(closes[i])
                 pnl        = exit_price - entry_price
                 trades.append({
@@ -113,6 +121,7 @@ def run_backtest(
                 position = 0
         elif position == -1:
             if sig == 1:
+                executed[i] = -2         # short exit
                 exit_price = float(closes[i])
                 pnl        = entry_price - exit_price
                 trades.append({
@@ -140,6 +149,7 @@ def run_backtest(
             data_start_date     = data_start,
             data_end_date       = data_end,
             bar_count           = bar_count,
+            executed_events     = executed,
         )
 
     wins      = sum(1 for t in trades if t["pnl"] > 0)
@@ -190,6 +200,7 @@ def run_backtest(
         data_start_date     = data_start,
         data_end_date       = data_end,
         bar_count           = bar_count,
+        executed_events     = executed,
     )
 
 

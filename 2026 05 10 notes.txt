@@ -1,0 +1,33 @@
+BABA
+BHP
+BURL
+CVCO
+GRBK
+IDXX
+NVR
+ODFL
+PHM
+RIO
+RIVN
+SKY
+TOL
+VEA
+YETI
+
+BABA, BHP, BURL, CVCO, GRBK, IDXX, NVR, ODFL, PHM, RIO, RIVN, SKY, TOL, VEA, YETI
+
+
+
+Few issues:
+1) Technical Chart back test run sell and buy pairing do not seem right. The information contains sell in the earlier date than the buy date, which I'm guess it constitutes a "pair". I don't think there is a logic to start pairing upon the first buy signal within the period signal.
+2) Sometimes, there seems to be multiple buy or sell signals. Multiple buy is okay, but multiple sell is not okay, since we cannot sell what we already sold, and don't have multiple of.
+3) Back test winrate is 75.0%, but Return is -52.81%. Although this is technically possible, the discrepancy seems a bit too large. I want to investigate if there is any implementation wrong. Maybe this is tied to 2) above?
+
+
+Few issues:
+1) Mean reversion buy signal doesn't seem to quite align with BB (20, SMA, C, 2, 0). The buy & sell signals are sometimes too close to the mean SMA (20, C). Maybe this is right, based on the fact that mean reversion is based on z-score, and z-score threshold to exit can be 0 (reverting to mean), but I just want to double check. I'm not sure if I should determine buy signal based on how close the price was to the bottom BB (20, SMA, C, 2, 0) line, or keep using z-score.
+2) Does "Stock Screener" page not keep the tickers? I've been adding some, and it seems like what I cached previously doesn't appear there anymore, unless I fetch it again. This is not an intended behavior. THe stock screener is intended to constantly grow as I manually fetch more and more.
+
+Investigate these issues, and make/write plans for fix or improvement in plan/ dir.
+
+backtest

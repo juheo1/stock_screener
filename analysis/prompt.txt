@@ -1,0 +1,3 @@
+Should I enter {ticker} today for long position? What is an estimated good target price? Use fundamental analysis. Make a new dir "analysis" and make .md file for the analysis result.
+
+Then, in {same_file_name}_kor.md file, translate the analysis into korean so that we have both eng and kor.

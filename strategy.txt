@@ -1,0 +1,24 @@
+Daily, 4 hr, 1 hr chart: SMA / Close
+Day trading using fast minute chart:
+Buy position -> High/EMA, High/WMA (green)
+Sell position -> Low/EMA, Low/WMA (red)
+
+In green band, only take buy position.
+In red band, only take sell position.
+
+
+sub-agent orchestration
+Planner, Architect, Code reviewer
+
+
+1. Check RSI. If below 30, oversold, and if above 70, overbought, indicating "possible" turnaround.
+2. Use default bollinger bands (BB) to check if last 1d close hit it.
+	Length (period): 20
+	Basis MA Type: SMA
+	Source: Close
+	StdDev: 2
+	Offset: 0
+If RSI < 30, and last 1d close hit the lower BB line, it indicates oversold and hit 2std; more evidence of oversold.
+If RSI < 70, and last 1d close hit the higher BB line, it indicates overbought and hit 2std; more evidence of overbought.
+3. 
+

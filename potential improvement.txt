@@ -1,0 +1,30 @@
+
+One very valuable addition: ranking
+
+If you scan thousands of tickers, users need triage.
+
+I would add a ranking score per detected signal, based on your existing strategy metrics where possible. For example:
+
+signal recency
+trend strength
+rejection strength
+distance from entry zone 
+backtest expectancy
+liquidity
+
+Even a simple score helps users focus on the best candidates first.
+
+One more thing you should strongly consider
+
+Add notifications.
+
+This page is naturally suited for:
+
+email summary after nightly scan
+Slack or Discord summary
+"new buy signals today"
+"new sell signals today"
+"signal invalidated"
+"top 10 ranked setups"
+
+That would make the feature much more actionable.

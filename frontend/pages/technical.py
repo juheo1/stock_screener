@@ -294,6 +294,7 @@ def _build_figure(
     computed_inds: list[dict],
     fill_betweens: list[dict] | None = None,
     signals: "pd.Series | None" = None,
+    executed_events: "list | None" = None,
 ) -> go.Figure:
 
     vol_ind     = next((c for c in computed_inds if c["type"] == "VOLMA"), None)
@@ -478,7 +479,37 @@ def _build_figure(
     ), row=1, col=1)
 
     # ── Strategy signal markers ──────────────────────────────────────
-    if signals is not None and len(signals) == len(df):
+    ev = (np.array(executed_events, dtype=int)
+          if executed_events is not None and len(executed_events) == len(df)
+          else None)
+
+    if ev is not None:
+        # 4-series: long entry / long exit / short entry / short exit
+        low_y  = df["Low"]  * (1 - _MARKER_OFFSET)
+        high_y = df["High"] * (1 + _MARKER_OFFSET)
+        _event_series = [
+            (ev == 1,  "triangle-up",   _C_STRAT_BUY,  low_y,  "LONG ENTRY"),
+            (ev == 2,  "triangle-down", _C_STRAT_BUY,  high_y, "LONG EXIT"),
+            (ev == -1, "triangle-down", _C_STRAT_SELL, high_y, "SHORT ENTRY"),
+            (ev == -2, "triangle-up",   _C_STRAT_SELL, low_y,  "SHORT EXIT"),
+        ]
+        for mask, symbol, color, y_series, label in _event_series:
+            if mask.any():
+                fig.add_trace(go.Scatter(
+                    x=df.index[mask],
+                    y=y_series[mask],
+                    mode="markers",
+                    marker=dict(
+                        symbol=symbol, size=10, color=color,
+                        line=dict(color=color, width=1),
+                    ),
+                    name=label,
+                    legendgroup="strategy-signals",
+                    showlegend=True,
+                    hovertemplate=f"<b>{label}</b><br>%{{x}}<extra></extra>",
+                ), row=1, col=1)
+    elif signals is not None and len(signals) == len(df):
+        # Fallback: legacy snapshots without executed_events
         buy_mask  = signals == 1
         sell_mask = signals == -1
         if buy_mask.any():
@@ -1247,7 +1278,35 @@ def _build_perf_card(display_name: str, perf: dict) -> html.Div:
         ]
     row2 = html.Div(row2_items, style={"marginTop": "2px"})
 
-    return html.Div([row1, row2], style={"marginTop": "4px"})
+    # Row 3: long/short split (only shown when both sides have trades)
+    trades_list = perf.get("trades", [])
+    long_trades  = [t for t in trades_list if t.get("side") == "long"]
+    short_trades = [t for t in trades_list if t.get("side") == "short"]
+    rows = [row1, row2]
+    if long_trades and short_trades:
+        n_long  = len(long_trades)
+        n_short = len(short_trades)
+        wr_long  = sum(1 for t in long_trades  if t["pnl"] > 0) / n_long  * 100
+        wr_short = sum(1 for t in short_trades if t["pnl"] > 0) / n_short * 100
+        pnl_long  = sum(t["pnl"] for t in long_trades)
+        pnl_short = sum(t["pnl"] for t in short_trades)
+        sign_l = "+" if pnl_long  >= 0 else ""
+        sign_s = "+" if pnl_short >= 0 else ""
+        col_l  = _C_STRAT_BUY  if pnl_long  >= 0 else _C_STRAT_SELL
+        col_s  = _C_STRAT_SELL if pnl_short <= 0 else _C_STRAT_BUY
+        rows.append(html.Div([
+            html.Span(
+                f"Long: {n_long} trades · {wr_long:.1f}% win · {sign_l}{pnl_long:.2f}",
+                style={"color": col_l, "fontSize": "0.72rem"},
+            ),
+            html.Span("    ", style={"whiteSpace": "pre"}),
+            html.Span(
+                f"Short: {n_short} trades · {wr_short:.1f}% win · {sign_s}{pnl_short:.2f}",
+                style={"color": col_s, "fontSize": "0.72rem"},
+            ),
+        ], style={"marginTop": "2px"}))
+
+    return html.Div(rows, style={"marginTop": "4px"})
 
 # ---------------------------------------------------------------------------
 # Layout
@@ -1879,13 +1938,18 @@ def _update_chart(ticker, interval_key, indicators, _load, fill_betweens, strate
 
     # Extract signals from strategy store if length still matches current data
     signals = None
+    executed_events = None
     if strategy_store and "signals" in strategy_store:
         raw = strategy_store["signals"]
         if len(raw) == len(df):
             signals = pd.Series(raw, index=df.index, dtype=int)
+    if strategy_store and "performance" in strategy_store:
+        ee = strategy_store["performance"].get("executed_events")
+        if ee is not None and len(ee) == len(df):
+            executed_events = ee
 
     fig = _build_figure(df, ticker, interval_key, computed_inds, fill_betweens or [],
-                        signals=signals)
+                        signals=signals, executed_events=executed_events)
 
     intraday   = interval_key in _INTRADAY_IVS
     fmt        = "%Y-%m-%d %H:%M" if intraday else "%Y-%m-%d"

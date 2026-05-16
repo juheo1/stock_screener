@@ -105,10 +105,41 @@ class BacktestResult:
     data_start_date:     str | None    # first bar date "YYYY-MM-DD"
     data_end_date:       str | None    # last bar date  "YYYY-MM-DD"
     bar_count:           int           # number of bars in df
+
+    # Executed events (parallel to df index)
+    executed_events:     list          # see "Executed Events" section below
 ```
 
 When `trade_count == 0`, all numeric fields are `0.0` / `None` and `trades` is `[]`.
 No division-by-zero errors occur.
+
+---
+
+## Executed Events
+
+`executed_events` is a `list[int]` of length `len(df)`, aligned to the input
+DataFrame's index. Each element records the position-machine action the engine
+actually took on that bar:
+
+| Value | Meaning      |
+|-------|--------------|
+| `0`   | No action    |
+| `1`   | Long entry   |
+| `2`   | Long exit    |
+| `-1`  | Short entry  |
+| `-2`  | Short exit   |
+
+Only signals the engine acted on are recorded. Duplicate signals that were
+ignored (e.g., `-1` while already short) remain `0`.
+
+This array enables the chart UI to render four distinct marker types
+(long entry / long exit / short entry / short exit) instead of a
+raw +1 / -1 split, eliminating ambiguous "out-of-order" sell/buy pairs and
+back-to-back duplicate markers.
+
+**Backward compatibility**: stored scanner snapshots predating this field
+won't contain `executed_events` in their serialized dicts. Chart code falls
+back to 2-series raw-signal rendering when the field is absent.
 
 ---
 

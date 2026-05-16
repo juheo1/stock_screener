@@ -370,6 +370,7 @@ class TestBacktestToDict:
             "strategy_return_pct", "avg_return_pct",
             "spy_return_pct", "beat_spy",
             "data_start_date", "data_end_date", "bar_count",
+            "executed_events",
         }
         assert expected_keys <= set(d.keys())
 
@@ -400,3 +401,63 @@ class TestBacktestToDict:
         sig[15] = -1
         result = run_backtest(df, sig)
         assert result.trade_count == 1
+
+
+# ---------------------------------------------------------------------------
+# Executed events
+# ---------------------------------------------------------------------------
+
+class TestExecutedEvents:
+    def test_length_equals_df_and_all_zero_on_no_signals(self):
+        df  = _make_df(30)
+        result = run_backtest(df, _no_signals(30))
+        assert len(result.executed_events) == 30
+        assert all(e == 0 for e in result.executed_events)
+
+    def test_long_round_trip_emits_entry_then_exit(self):
+        df  = _make_df(20)
+        sig = _signals_long(20, entry=5, exit_=15)
+        result = run_backtest(df, sig)
+        assert result.executed_events[5]  == 1   # long entry
+        assert result.executed_events[15] == 2   # long exit
+        # all other bars are zero
+        others = [result.executed_events[i] for i in range(20) if i not in (5, 15)]
+        assert all(e == 0 for e in others)
+
+    def test_short_round_trip_emits_entry_then_exit(self):
+        df  = _make_df(20)
+        sig = _signals_short(20, entry=5, exit_=15)
+        result = run_backtest(df, sig)
+        assert result.executed_events[5]  == -1  # short entry
+        assert result.executed_events[15] == -2  # short exit
+        assert result.trades[0]["side"] == "short"
+        assert result.trades[0]["entry_date"] == str(df.index[5])[:10]
+
+    def test_duplicate_minus_one_while_short_produces_one_short_entry(self):
+        """Duplicate -1 signals while in a short position must be ignored."""
+        n   = 20
+        sig = pd.Series(0, index=range(n), dtype=int)
+        sig.iloc[3]  = -1   # enter short
+        sig.iloc[7]  = -1   # ignored — already short
+        sig.iloc[15] = 1    # exit short
+        df  = _make_df(n)
+        result = run_backtest(df, sig)
+        short_entries = [i for i, e in enumerate(result.executed_events) if e == -1]
+        assert short_entries == [3]   # only one short entry recorded
+        assert result.executed_events[7] == 0
+
+    def test_new_long_after_exit_opens_on_next_plus_one_bar(self):
+        """+1 on a different bar after a long exit opens a second long."""
+        n   = 30
+        sig = pd.Series(0, index=range(n), dtype=int)
+        sig.iloc[5]  = 1    # first long entry
+        sig.iloc[10] = -1   # first long exit
+        sig.iloc[15] = 1    # second long entry
+        sig.iloc[25] = -1   # second long exit
+        df  = _make_df(n)
+        result = run_backtest(df, sig)
+        assert result.executed_events[5]  == 1   # first long entry
+        assert result.executed_events[10] == 2   # first long exit
+        assert result.executed_events[15] == 1   # second long entry
+        assert result.executed_events[25] == 2   # second long exit
+        assert result.trade_count == 2
